@@ -14,7 +14,7 @@ const Layout = ({
     <div className={`flex flex-row p-5 ${abeezee.className}`}>
       <NavBar />
       <div className="flex flex-1 justify-center">{children}</div> {/* Добавил flex-1 */}
-      <Search />
+      <Search userId={undefined} />
     </div>
   );
 };

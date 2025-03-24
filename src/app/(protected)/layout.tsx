@@ -1,7 +1,8 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
+import AuthGuard from "../components/auth-guard";
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -12,7 +13,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     if (!token) {
       router.replace(`/auth/login?redirect=${encodeURIComponent(pathname)}`);
     }
-  }, [router, pathname]);
+  }, []);
 
-  return <>{children}</>;
+  return <AuthGuard>{children}</AuthGuard>;
 }

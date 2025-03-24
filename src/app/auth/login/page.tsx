@@ -1,33 +1,46 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ABeeZee } from "next/font/google";
 import { supabase } from "../../../../supabaseClient";
+import Link from "next/link";
 
 const abeezee = ABeeZee({ subsets: ["latin"], weight: "400" });
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect") || "/";
 
   const handleLogin = async () => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    setIsLoading(true);
+    setError(null);
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
+    try {
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    const userId = data.user?.id;
+      if (authError) {
+        throw new Error(authError.message);
+      }
 
-    if (userId) {
-      localStorage.setItem("token", userId);
-      router.push("/main/pages/home");
+      if (!data.user?.id) {
+        throw new Error("Authentication failed: No user ID received");
+      }
+
+      localStorage.setItem("token", data.user.id);
+      router.replace(redirect);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unknown error occurred");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -35,13 +48,21 @@ export default function LoginPage() {
     <div className={`flex justify-center items-center h-screen flex-col ${abeezee.className}`}>
       <div className="flex-col flex justify-center items-center w-[332px]">
         <div className="text-[32px] mb-5 font-bold">Log in</div>
+        
+        {error && (
+          <div className="mb-4 text-red-500 text-sm w-full text-center">
+            {error}
+          </div>
+        )}
+
         <div className="flex flex-col gap-5 w-full">
           <input
-            type="text"
+            type="email"
             placeholder="Enter your email..."
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="p-7 bg-[#E7E7E7] h-[50px] rounded-[10px] text-[15px] w-full"
+            disabled={isLoading}
           />
           <input
             type="password"
@@ -49,13 +70,26 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="p-7 bg-[#E7E7E7] h-[50px] rounded-[10px] text-[15px] w-full"
+            disabled={isLoading}
           />
         </div>
-        <button onClick={handleLogin} className="flex justify-center items-center h-[50px] bg-[#5BB8FF] text-white w-full mt-5 rounded-[10px] text-[15px] cursor-pointer">
-          Continue
+
+        <button 
+          onClick={handleLogin} 
+          disabled={isLoading}
+          className="flex justify-center items-center h-[50px] bg-[#5BB8FF] text-white w-full mt-5 rounded-[10px] text-[15px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? "Processing..." : "Continue"}
         </button>
+
         <div className="mt-4">
-          Don’t have an account? <a href="/auth/registration" className="text-[#5BB8FF]">Registration</a>
+          Don’t have an account?{" "}
+          <Link 
+            href="/auth/registration" 
+            className="text-[#5BB8FF] hover:underline"
+          >
+            Registration
+          </Link>
         </div>
       </div>
     </div>

@@ -7,7 +7,7 @@ import ImgIcon from "@/assets/main/svg/img-icon";
 import SmileIcon from "@/assets/main/svg/smile-icon";
 import VideoIcon from "@/assets/main/svg/video-icon";
 import Post from "../../components/post";
-import { supabase } from "../../../../../supabaseClient";
+import { supabase } from "../../../../../../supabaseClient";
 
 export default function HomePage() {
   const [text, setText] = useState("");
@@ -28,6 +28,30 @@ export default function HomePage() {
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [text]);
+
+  const createPost = async () => {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+  
+    if (authError || !user) {
+      console.error("Ошибка получения пользователя:", authError);
+      return;
+    }
+  
+    const { error } = await supabase
+      .from("posts")
+      .insert([{ user_id: user.id, text: text, media_url: "" }]);
+  
+    if (error) {
+      console.error("Ошибка при создании поста:", error);
+    } else {
+      console.log("Пост успешно создан!");
+      setText(""); // Очищаем поле после отправки
+    }
+  };
+  
 
   return (
     <div className="flex flex-col bg-[#F0F0F0] rounded-[10px] w-full h-full mx-5">
@@ -55,7 +79,7 @@ export default function HomePage() {
             <SmileIcon />
             <VideoIcon />
           </div>
-          <button className="flex justify-center items-center h-[50px] bg-[#5BB8FF] text-white rounded-[15px] text-[15px] px-10">
+          <button className="flex justify-center items-center h-[50px] bg-[#5BB8FF] text-white rounded-[15px] text-[15px] px-10" onClick={createPost}>
             Post
           </button>
         </div>
