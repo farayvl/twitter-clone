@@ -8,7 +8,7 @@ import { supabase } from "../../../../../../supabaseClient";
 export default function FriendsPage() {
   const [friends, setFriends] = useState<any[]>([]);
   const userId = localStorage.getItem("token");
-
+  
   useEffect(() => {
     const fetchFriends = async () => {
       const { data } = await supabase
