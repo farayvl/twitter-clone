@@ -1,8 +1,27 @@
 // next.config.js
 module.exports = {
+  webpack: (config) => {
+    config.module.rules.push({
+      test: /\.(mp4|webm)$/,
+      use: {
+        loader: 'file-loader',
+        options: {
+          publicPath: '/_next/static/videos',
+          outputPath: 'static/videos',
+          name: '[name].[hash].[ext]',
+        },
+      },
+    });
+    return config;
+  },
   images: {
     domains: [
       'jqrratbymwlgkswwxpyk.supabase.co',
+      "media0.giphy.com",
+      "media1.giphy.com",
+      "media2.giphy.com",
+      "media3.giphy.com",
+      "media4.giphy.com",
     ],
     remotePatterns: [
       {

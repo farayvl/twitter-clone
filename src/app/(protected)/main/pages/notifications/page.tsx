@@ -8,8 +8,31 @@ import CommentPost from "../../components/comment-post";
 import FriendRequest from "../../components/friend-request";
 
 export default function NotificationsPage() {
+  const [notifications, setNotifications] = useState([]);
   const [requests, setRequests] = useState<any[]>([]);
   const userId = localStorage.getItem("token");
+
+  const fetchNotifications = async (userId) => {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('receiver_id', userId)
+      .order('created_at', { ascending: false });
+  
+    if (error) {
+      console.error('Ошибка при загрузке уведомлений:', error);
+    }
+    return data;
+  };
+
+  useEffect(() => {
+    const loadNotifications = async () => {
+      const data = await fetchNotifications(userId);
+      setNotifications(data);
+    };
+
+    loadNotifications();
+  }, [userId]);
 
   useEffect(() => {
     const fetchRequests = async () => {
@@ -42,6 +65,7 @@ export default function NotificationsPage() {
           }
         />
       ))}
+      <CommentPost/>
     </div>
   );
 }

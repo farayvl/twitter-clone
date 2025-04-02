@@ -9,18 +9,28 @@ import VideoIcon from "@/assets/main/svg/video-icon";
 import Post from "../../components/post";
 import { supabase } from "../../../../../../supabaseClient";
 import Image from "next/image";
+import GifPicker from "../../components/gif-picker";
+import { AnimatePresence, motion } from "framer-motion";
 
-export default function HomePage({ post }) {
+export default function HomePage() {
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [posts, setPosts] = useState([]);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
+  const [showGifPicker, setShowGifPicker] = useState(false);
+  const [selectedGif, setSelectedGif] = useState<string | null>(null);
+
   const [user, setUser] = useState<{
     login: string;
     username: string;
     avatar_url: string | null;
-  }>({ login: "", username: "", avatar_url: null });
+  }>({
+    login: "",
+    username: "",
+    avatar_url: null,
+  });
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -41,25 +51,16 @@ export default function HomePage({ post }) {
 
   useEffect(() => {
     const fetchPosts = async () => {
-      const { data, error } = await supabase.from("posts").select("*");
+      const { data, error } = await supabase
+        .from("posts")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-      if (!error) {
-        setPosts(data);
-      } else {
-        console.error("Ошибка загрузки постов:", error);
-      }
+      if (data) setPosts(data);
+      else console.error("Ошибка загрузки постов:", error);
     };
 
     fetchPosts();
-  }, []);
-
-  useEffect(() => {
-    const checkConnection = async () => {
-      const { data, error } = await supabase.from("profiles").select("*");
-      console.log("Data:", data, "Error:", error);
-    };
-
-    checkConnection();
   }, []);
 
   useEffect(() => {
@@ -68,6 +69,33 @@ export default function HomePage({ post }) {
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [text]);
+
+  const handleSelectGif = (gifUrl: string) => {
+    setSelectedGif(gifUrl);
+    setMediaPreview(null);
+    setSelectedFile(null);
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const type = file.type.startsWith("image/")
+      ? "image"
+      : file.type.startsWith("video/")
+      ? "video"
+      : null;
+
+    if (!type) {
+      alert("Поддерживаются только изображения и видео");
+      return;
+    }
+
+    setMediaType(type);
+    setSelectedFile(file);
+    setSelectedGif(null);
+    setMediaPreview(URL.createObjectURL(file));
+  };
 
   const createPost = async () => {
     const {
@@ -81,28 +109,24 @@ export default function HomePage({ post }) {
       return;
     }
 
-    let mediaUrl = null;
+    let mediaUrl = selectedGif || null;
 
     try {
       if (selectedFile) {
         const fileExt = selectedFile.name.split(".").pop();
         const fileName = `${user.id}_${Date.now()}.${fileExt}`;
-        const filePath = `post-images/${fileName}`;
+        const filePath = `post-media/${fileName}`;
 
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from("post-images")
-          .upload(filePath, selectedFile, {
-            contentType: selectedFile.type,
-            cacheControl: "3600",
-          });
+          .upload(filePath, selectedFile);
 
         if (uploadError) throw uploadError;
 
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("post-images").getPublicUrl(uploadData.path);
-
-        mediaUrl = publicUrl;
+        const { data } = supabase.storage
+          .from("post-images")
+          .getPublicUrl(uploadData.path);
+        mediaUrl = data.publicUrl;
       }
 
       const { error } = await supabase.from("posts").insert([
@@ -116,29 +140,19 @@ export default function HomePage({ post }) {
 
       if (error) throw error;
 
-      // Обновление списка постов
+      setText("");
+      setSelectedFile(null);
+      setMediaPreview(null);
+      setSelectedGif(null);
+
       const { data: newPosts } = await supabase
         .from("posts")
         .select("*")
         .order("created_at", { ascending: false });
-
       setPosts(newPosts);
-      setText("");
-      setSelectedImage(null);
-      setSelectedFile(null);
     } catch (error) {
       console.error("Ошибка:", error);
       alert(`Ошибка: ${error.message}`);
-    }
-  };
-
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      console.log("Выбранный файл:", file); // Проверка
-      const imageUrl = URL.createObjectURL(file);
-      setSelectedImage(imageUrl);
-      setSelectedFile(file);
     }
   };
 
@@ -148,8 +162,10 @@ export default function HomePage({ post }) {
         <HomeIcon color="#969696" />
         Home
       </div>
+
       <div className="h-[1px] w-full bg-[#969696]" />
-      <div className="bg-[#D9D9D9] p-5 m-5 rounded-[15px] flex flex-col justify-between">
+
+      <div className="bg-[#D9D9D9] p-5 m-5 rounded-[15px] flex flex-col">
         <div className="flex flex-row items-center gap-3">
           {user.avatar_url ? (
             <Image
@@ -160,7 +176,7 @@ export default function HomePage({ post }) {
               className="rounded-full"
             />
           ) : (
-            <div className="rounded-full bg-[#969696] h-[35px] w-[35px]" /> // Заглушка, если нет аватарки
+            <div className="rounded-full bg-[#969696] h-[35px] w-[35px]" />
           )}
           <textarea
             ref={textareaRef}
@@ -171,45 +187,104 @@ export default function HomePage({ post }) {
             rows={1}
           />
         </div>
-        {selectedImage && (
-          <div className="mt-3 flex justify-start">
+
+        {mediaPreview && mediaType === "image" && (
+          <div className="mt-3">
             <Image
-              width={50}
-              height={50}
-              src={selectedImage}
+              src={mediaPreview}
               alt="Preview"
-              className="w-16 h-16 object-cover rounded-md border border-gray-400"
+              width={64}
+              height={64}
+              className="rounded-md border border-gray-400"
             />
           </div>
         )}
+
+        {mediaPreview && mediaType === "video" && (
+          <div className="mt-3">
+            <video
+              controls
+              className="w-64 h-36 rounded-md border border-gray-400"
+            >
+              <source src={mediaPreview} />
+            </video>
+          </div>
+        )}
+
+        {selectedGif && (
+          <div className="mt-3">
+            <Image
+              src={selectedGif}
+              alt="Selected GIF"
+              width={64}
+              height={64}
+              className="rounded-md border border-gray-400"
+            />
+          </div>
+        )}
+
         <div className="flex flex-row justify-between items-center mt-3">
           <div className="flex flex-row gap-3 items-center">
-            <GifIcon />
+            <div className="relative flex flex-col">
+              {/* Кнопка */}
+              <button
+                onClick={() => setShowGifPicker(!showGifPicker)}
+                className="cursor-pointer relative z-20"
+              >
+                <GifIcon />
+              </button>
+
+              {/* Контейнер для списка, который не двигает инпут */}
+              <div className="absolute top-full left-0 mt-2 w-[320px] z-50">
+                <AnimatePresence>
+                  {showGifPicker && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute top-full mt-75 z-50 rounded-xl w-[320px] min-h-[150px]"
+                    >
+                      <GifPicker
+                        onSelect={handleSelectGif}
+                        onClose={() => setShowGifPicker(false)}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* Остальные элементы */}
             <input
               type="file"
-              accept="image/*"
+              accept="image/*, video/*"
               className="hidden"
               id="fileInput"
               onChange={handleFileChange}
             />
+
             <button
-              onClick={() => document.getElementById("fileInput").click()}
+              onClick={() => document.getElementById("fileInput")?.click()}
               className="cursor-pointer"
             >
               <ImgIcon />
             </button>
+
             <SmileIcon />
-            <VideoIcon />
           </div>
+
           <button
-            className="flex justify-center items-center h-[50px] bg-[#5BB8FF] text-white rounded-[15px] text-[15px] px-10 cursor-pointer"
+            className="h-[50px] bg-[#5BB8FF] text-white rounded-[15px] text-[15px] px-10 cursor-pointer"
             onClick={createPost}
           >
             Post
           </button>
         </div>
       </div>
+
       <div className="h-[1px] w-full bg-[#969696]" />
+
       {posts.map((post) => (
         <Post key={post.id} post={post} />
       ))}
