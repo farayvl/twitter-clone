@@ -11,27 +11,50 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
   const [requests, setRequests] = useState<any[]>([]);
   const userId = localStorage.getItem("token");
-
-  const fetchNotifications = async (userId) => {
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('receiver_id', userId)
-      .order('created_at', { ascending: false });
-  
-    if (error) {
-      console.error('Ошибка при загрузке уведомлений:', error);
-    }
-    return data;
-  };
+  const [comments, setComments] = useState([]);
 
   useEffect(() => {
-    const loadNotifications = async () => {
-      const data = await fetchNotifications(userId);
-      setNotifications(data);
+    // NotificationsPage.tsx
+    const fetchNotifications = async () => {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select(
+          `
+      *,
+      sender:profiles!sender_id(username, avatar_url, login),
+      post:posts!post_id(media_url)
+    `
+        )
+        .eq("receiver_id", userId)
+        .order("created_at", { ascending: false });
+
+      if (!error) {
+        console.log("Notifications data:", data); // Добавьте для отладки
+        setNotifications(data);
+      } else {
+        console.error("Error fetching notifications:", error);
+      }
     };
 
-    loadNotifications();
+    fetchNotifications();
+
+    // Реалтайм обновления
+    const channel = supabase
+      .channel("notifications")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+        },
+        (payload) => {
+          setNotifications((prev) => [payload.new, ...prev]);
+        }
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
   }, [userId]);
 
   useEffect(() => {
@@ -55,7 +78,7 @@ export default function NotificationsPage() {
         Notifications
       </div>
       <div className="h-[1px] w-full bg-[#969696]" />
-      {/* ... существующая верстка */}
+      {/* Отображаем запросы дружбы */}
       {requests.map((request) => (
         <FriendRequest
           key={request.id}
@@ -65,7 +88,14 @@ export default function NotificationsPage() {
           }
         />
       ))}
-      <CommentPost/>
+      {/* Отображаем комментарии */}
+      {notifications.map((notification) => {
+        if (!notification.comment_id || !notification.post_id) return null;
+
+        return (
+          <CommentPost key={notification.id} notification={notification} />
+        );
+      })}
     </div>
   );
 }

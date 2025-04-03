@@ -11,6 +11,7 @@ import { supabase } from "../../../../../../supabaseClient";
 import Image from "next/image";
 import GifPicker from "../../components/gif-picker";
 import { AnimatePresence, motion } from "framer-motion";
+import Link from "next/link";
 
 export default function HomePage() {
   const [text, setText] = useState("");

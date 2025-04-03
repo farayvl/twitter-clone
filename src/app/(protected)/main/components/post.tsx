@@ -12,6 +12,8 @@ import SmileIcon from "@/assets/main/svg/smile-icon";
 import VideoIcon from "@/assets/main/svg/video-icon";
 import HeartCommentIcon from "@/assets/main/svg/heart-comment-icon";
 import { supabase } from "../../../../../supabaseClient";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 export default function Post({ post }) {
   const [showComments, setShowComments] = useState(false);
@@ -26,8 +28,52 @@ export default function Post({ post }) {
   );
   const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
   const [replies, setReplies] = useState<Record<number, any[]>>({});
-
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [targetCommentId, setTargetCommentId] = useState<number | null>(null);
+  const [postExists, setPostExists] = useState(true);
+  const searchParams = useSearchParams();
+  const commentId = searchParams.get("commentId");
+  const shouldOpenComments = searchParams.get("openComments");
+  const [isCommentsLoading, setIsCommentsLoading] = useState(false);
+  const [hasScrolled, setHasScrolled] = useState(false);
+  const isSinglePostPage = window.location.pathname.includes("/posts/");
+
+  const handleCommentClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowComments((prev) => {
+      if (!prev) fetchComments();
+      return !prev;
+    });
+  };
+
+  useEffect(() => {
+    if (isSinglePostPage && commentId) {
+      setShowComments(true);
+      fetchComments().then(() => {
+        const element = document.getElementById(`comment-${commentId}`);
+        element?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    }
+  }, [isSinglePostPage, commentId]);
+
+  useEffect(() => {
+    if (commentId && !showComments) {
+      setShowComments(true);
+      fetchComments();
+    }
+  }, [commentId]);
+
+  useEffect(() => {
+    if (targetCommentId && comments.length > 0) {
+      const element = document.getElementById(`comment-${targetCommentId}`);
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+          element.classList.add("highlight-comment");
+        }, 500);
+      }
+    }
+  }, [comments, targetCommentId]);
 
   const [user, setUser] = useState<{
     login: string;
@@ -47,7 +93,7 @@ export default function Post({ post }) {
       const { data } = await supabase
         .from("profiles")
         .select("login, username, avatar_url")
-        .eq("id", userId)   
+        .eq("id", userId)
         .single();
 
       if (data) setUser(data);
@@ -57,17 +103,81 @@ export default function Post({ post }) {
   }, []);
 
   const fetchComments = async () => {
-    const { data, error } = await supabase
-      .from("comments")
-      .select("*, profiles:profiles(id, avatar_url, username, login)")
-      .eq("post_id", post.id)
-      .is("parent_id", null)
-      .order("created_at", { ascending: true });
+    setIsCommentsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("comments")
+        .select("*, profiles:profiles(id, avatar_url, username, login)")
+        .eq("post_id", post.id)
+        .is("parent_id", null)
+        .order("created_at", { ascending: true });
 
-    if (!error && data) {
-      setComments(data);
+      if (!error && data) {
+        setComments(data);
+
+        // Проверяем если комментарий является ответом
+        const allComments = await supabase
+          .from("comments")
+          .select("*")
+          .eq("post_id", post.id);
+
+        if (allComments.data) {
+          const targetComment = allComments.data.find(
+            (c) => c.id === targetCommentId
+          );
+          if (targetComment?.parent_id) {
+            setOpenedReplies((prev) => ({
+              ...prev,
+              [targetComment.parent_id]: true,
+            }));
+            fetchReplies(targetComment.parent_id);
+          }
+        }
+      }
+    } finally {
+      setIsCommentsLoading(false);
     }
   };
+
+  // Создаем отдельный хук
+  const useScrollToComment = (targetId: number) => {
+    useEffect(() => {
+      const element = document.getElementById(`comment-${targetId}`);
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+            inline: "nearest",
+          });
+          element.classList.add("highlight-comment");
+        }, 500);
+      }
+    }, [targetId, comments]);
+  };
+
+  useScrollToComment(Number(commentId));
+
+  // Использование в компоненте
+  useScrollToComment(targetCommentId, [comments]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("post-comments")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "comments",
+          filter: `post_id=eq.${post.id}`,
+        },
+        () => fetchComments()
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [post.id]);
 
   const fetchReplies = async (commentId: number) => {
     const { data, error } = await supabase
@@ -167,6 +277,118 @@ export default function Post({ post }) {
     }
   }, [text]);
 
+  useEffect(() => {
+    const checkPostExists = async () => {
+      const { count } = await supabase
+        .from("posts")
+        .select("*", { count: "exact" })
+        .eq("id", post.id);
+
+      setPostExists(count > 0);
+    };
+
+    checkPostExists();
+  }, [post.id]);
+
+  useEffect(() => {
+    // Редирект со старых URL с хешем
+    const handleHashRedirect = () => {
+      const hash = window.location.hash;
+      const match = hash.match(/comment-(.+)/);
+
+      if (match) {
+        const commentId = match[1];
+        window.location.href = `/main/posts/${post.id}/comments/${commentId}`;
+      }
+    };
+
+    handleHashRedirect();
+  }, [post.id]);
+
+  // В компоненте Post (post.tsx)
+  useEffect(() => {
+    const scrollToComment = async () => {
+      if (!targetCommentId || !comments.length) return;
+
+      // Ждем 2 цикла рендеринга для гарантии отображения
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+
+      const commentElement = document.getElementById(
+        `comment-${targetCommentId}`
+      );
+
+      if (commentElement) {
+        // Рассчитываем позицию с учетом фиксированных элементов
+        const yOffset = -100; // Корректировка для шапки
+        const y =
+          commentElement.getBoundingClientRect().top +
+          window.pageYOffset +
+          yOffset;
+
+        window.scrollTo({
+          top: y,
+          behavior: "smooth",
+        });
+
+        // Альтернатива через scrollIntoView с полифиллом
+        commentElement.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+          inline: "nearest",
+        });
+
+        // Добавляем кастомный индикатор
+        const pulse = document.createElement("div");
+        pulse.style.cssText = `
+        position: absolute;
+        background: rgba(255, 220, 0, 0.3);
+        border-radius: 8px;
+        animation: highlight-pulse 2s ease-out;
+        pointer-events: none;
+      `;
+
+        // Рассчитываем размеры
+        const rect = commentElement.getBoundingClientRect();
+        pulse.style.width = `${rect.width}px`;
+        pulse.style.height = `${rect.height}px`;
+        pulse.style.left = `${rect.left}px`;
+        pulse.style.top = `${rect.top}px`;
+
+        document.body.appendChild(pulse);
+
+        setTimeout(() => pulse.remove(), 2000);
+      }
+    };
+
+    scrollToComment();
+  }, [comments, targetCommentId]);
+
+  useEffect(() => {
+    if (showComments && comments.length > 0 && commentId && !hasScrolled) {
+      const scrollToTarget = () => {
+        const element = document.getElementById(`comment-${commentId}`);
+        if (element) {
+          element.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+            inline: "nearest",
+          });
+          element.classList.add("highlight-comment");
+          setHasScrolled(true);
+        }
+      };
+
+      // Добавляем задержку для гарантии рендеринга
+      const timer = setTimeout(scrollToTarget, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [comments, showComments, commentId, hasScrolled]);
+
+  if (!postExists) {
+    return <div>Post not found</div>;
+  }
+
   return (
     <div className="bg-[#D9D9D9] p-5 m-5 rounded-[15px] flex flex-col">
       <div className="flex flex-row items-center gap-2 mb-5">
@@ -222,7 +444,7 @@ export default function Post({ post }) {
 
         <div className="flex flex-row gap-5 items-center ml-3">
           <HeartPostIcon />
-          <button onClick={toggleComments} className="cursor-pointer">
+          <button onClick={handleCommentClick} className="cursor-pointer">
             <CommentPostIcon filled={showComments} />
           </button>
           <BookmarkPostIcon />
@@ -277,6 +499,7 @@ export default function Post({ post }) {
 
               {comments.map((comment) => (
                 <div
+                  id={`comment-${comment.id}`}
                   key={comment.id}
                   className="bg-[#F0F0F0] rounded-[15px] flex flex-col justify-between mt-5"
                 >
