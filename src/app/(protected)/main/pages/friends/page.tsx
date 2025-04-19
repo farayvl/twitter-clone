@@ -40,7 +40,6 @@ export default function FriendsPage() {
         Friends
       </div>
       <div className="h-[1px] w-full bg-[#969696]" />
-      {/* ... существующая верстка */}
       <div className="flex flex-col gap-0 p-5">
         {friends.map((friend) => (
           <FriendCard

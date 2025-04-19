@@ -3,7 +3,7 @@ import axios from "axios";
 import Image from "next/image";
 import SearchIcon from "@/assets/main/svg/search-icon";
 
-const GIPHY_API_KEY = "qPjXf32MzEWAuGDdVVk51n1XOWNLHYAU"; // API-ключ
+const GIPHY_API_KEY = "qPjXf32MzEWAuGDdVVk51n1XOWNLHYAU"; 
 
 export default function GifPicker({ onSelect, onClose }) {
   const [query, setQuery] = useState("");
@@ -33,7 +33,7 @@ export default function GifPicker({ onSelect, onClose }) {
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (modalRef.current && !modalRef.current.contains(event.target)) {
-        onClose(); // Закрываем модальное окно, если клик вне его области
+        onClose(); 
       }
     };
 
@@ -45,21 +45,18 @@ export default function GifPicker({ onSelect, onClose }) {
     <div
       className="absolute bottom-12 left-0 w-[400px] bg-white p-4 rounded-md shadow-lg z-50 flex flex-col"
       ref={modalRef}
-      style={{ height: "400px" }} // Фиксированная высота
+      style={{ height: "400px" }} 
     >
-      {/* Фиксированный блок инпута */}
       <div className="flex-shrink-0  bg-[#DFDFDF] h-[50px] rounded-[10px] px-4 flex items-center">
         <SearchIcon className="w-5 h-5 text-gray-500" />
         <input
           type="text"
-          placeholder="Введите запрос"
+          placeholder="Write something..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="bg-transparent p-2 w-full rounded-md focus:outline-none font-abeezee"
         />
       </div>
-
-      {/* Прокручиваемая область с результатами */}
       <div className="flex-1 mt-4 overflow-y-auto">
         <div className="grid grid-cols-3 gap-2">
           {gifs.map((gif) => (

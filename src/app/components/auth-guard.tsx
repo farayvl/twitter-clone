@@ -9,10 +9,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    console.log("Токен:", token); // Добавляем лог
+    console.log("Токен:", token); 
 
     if (!token) {
-      console.log("Редирект на /auth/login"); // Лог перед редиректом
+      console.log("Редирект на /auth/login"); 
       router.push("/auth/login");
     } else {
       setIsAuthenticated(true);

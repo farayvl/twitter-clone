@@ -12,9 +12,9 @@ export default function NotificationsPage() {
   const [requests, setRequests] = useState<any[]>([]);
   const userId = localStorage.getItem("token");
   const [comments, setComments] = useState([]);
+  const [likes, setLikes] = useState([]);
 
   useEffect(() => {
-    // NotificationsPage.tsx
     const fetchNotifications = async () => {
       const { data, error } = await supabase
         .from("notifications")
@@ -29,7 +29,7 @@ export default function NotificationsPage() {
         .order("created_at", { ascending: false });
 
       if (!error) {
-        console.log("Notifications data:", data); // Добавьте для отладки
+        console.log("Notifications data:", data);
         setNotifications(data);
       } else {
         console.error("Error fetching notifications:", error);
@@ -38,7 +38,6 @@ export default function NotificationsPage() {
 
     fetchNotifications();
 
-    // Реалтайм обновления
     const channel = supabase
       .channel("notifications")
       .on(
@@ -78,7 +77,6 @@ export default function NotificationsPage() {
         Notifications
       </div>
       <div className="h-[1px] w-full bg-[#969696]" />
-      {/* Отображаем запросы дружбы */}
       {requests.map((request) => (
         <FriendRequest
           key={request.id}
@@ -88,13 +86,18 @@ export default function NotificationsPage() {
           }
         />
       ))}
-      {/* Отображаем комментарии */}
       {notifications.map((notification) => {
-        if (!notification.comment_id || !notification.post_id) return null;
+        if (notification.comment_text && notification.post_id) {
+          return (
+            <CommentPost key={notification.id} notification={notification} />
+          );
+        }
 
-        return (
-          <CommentPost key={notification.id} notification={notification} />
-        );
+        if (!notification.comment_text && notification.post_id) {
+          return <LikePost key={notification.id} notification={notification} />;
+        }
+
+        return null;
       })}
     </div>
   );

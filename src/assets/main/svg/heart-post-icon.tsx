@@ -1,12 +1,12 @@
 import React from "react";
 
-export default function HeartPostIcon() {
+export default function HeartPostIcon({ filled }: { filled?: boolean }) {
   return (
     <svg
       width="29"
       height="27"
       viewBox="0 0 29 27"
-      fill="none"
+      fill={filled ? "#5BB8FF" : "none"}
       xmlns="http://www.w3.org/2000/svg"
     >
       <path

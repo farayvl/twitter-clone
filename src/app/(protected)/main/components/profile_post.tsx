@@ -6,12 +6,20 @@ import Image from "next/image";
 import HeartPostIcon from "@/assets/main/svg/heart-post-icon";
 import BookmarkPostIcon from "@/assets/main/svg/bookmark-post-icon";
 import CommentPostIcon from "@/assets/main/svg/comment-post-icon";
+import GifIcon from "@/assets/main/svg/gif-icon";
+import ImgIcon from "@/assets/main/svg/img-icon";
+import SmileIcon from "@/assets/main/svg/smile-icon";
+import VideoIcon from "@/assets/main/svg/video-icon";
 import HeartCommentIcon from "@/assets/main/svg/heart-comment-icon";
 import { supabase } from "../../../../../supabaseClient";
 import { useSearchParams } from "next/navigation";
-import { useRouter } from "next/navigation";
+import { div } from "framer-motion/client";
+import PenIcon from "@/assets/main/svg/pen-icon";
+import TrashCanIcon from "@/assets/main/svg/trash-can-icon";
+import NicknameButton from "@/assets/main/svg/nickname-button";
+import UndoNickname from "@/assets/main/svg/undo-nickname";
 
-export default function Post({ post }) {
+export default function ProfilePost({ post }) {
   const [showComments, setShowComments] = useState(false);
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -35,23 +43,52 @@ export default function Post({ post }) {
   const isSinglePostPage = window.location.pathname.includes("/posts/");
   const [isSaved, setIsSaved] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
-  const [repliesCount, setRepliesCount] = useState<Record<number, number>>({});
-  const router = useRouter();
+  const [isEditing, setIsEditing] = useState(false);
+  const [postText, setPostText] = useState(post.text); // Напрямую используем post.text
+  const [isEditingTextPost, setIsEditingTextPost] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [mediaUrl, setMediaUrl] = useState(post.media_url);
 
-  const goToProfile = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    if (!login) {
-      console.error("Login is missing");
-      return;
+    setIsUploading(true);
+
+    try {
+      const fileName = `${Date.now()}-${file.name}`;
+      const filePath = `posts/${fileName}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("post-images")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("post-images")
+        .getPublicUrl(filePath);
+
+      const { error: updateError } = await supabase
+        .from("posts")
+        .update({ media_url: urlData.publicUrl })
+        .eq("id", post.id);
+
+      if (updateError) throw updateError;
+
+      // Сразу обновляем локальное состояние
+      setMediaUrl(urlData.publicUrl);
+    } catch (error) {
+      console.error("Error uploading media:", error);
+      alert("Failed to upload media");
+    } finally {
+      setIsUploading(false);
     }
+  };
 
-    const params = new URLSearchParams();
-    if (avatar) params.set("avatar", avatar);
-    if (username) params.set("username", username || "");
-    params.set("login", login);
-
-    router.push(`/main/pages/other-profile?${params.toString()}`);
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
   };
 
   useEffect(() => {
@@ -116,19 +153,12 @@ export default function Post({ post }) {
   }, [post.id]);
 
   const handleSavePost = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+    e.stopPropagation(); 
 
     const {
       data: { user },
-      error: authError,
     } = await supabase.auth.getUser();
-
-    if (!user) {
-      console.log("User not authenticated");
-      return;
-    }
-
-    console.log("Toggling save for post:", post.id, "current state:", isSaved);
+    if (!user) return;
 
     try {
       if (isSaved) {
@@ -138,23 +168,13 @@ export default function Post({ post }) {
           .eq("user_id", user.id)
           .eq("post_id", post.id);
 
-        console.log("Delete result:", error);
-
-        if (!error) {
-          setIsSaved(false);
-          console.log("Post unsaved successfully");
-        }
+        if (!error) setIsSaved(false);
       } else {
         const { error } = await supabase
           .from("saved_posts")
           .insert([{ user_id: user.id, post_id: post.id }]);
 
-        console.log("Insert result:", error);
-
-        if (!error) {
-          setIsSaved(true);
-          console.log("Post saved successfully");
-        }
+        if (!error) setIsSaved(true);
       }
     } catch (error) {
       console.error("Error saving post:", error);
@@ -237,21 +257,6 @@ export default function Post({ post }) {
 
       if (!error && data) {
         setComments(data);
-
-        const counts = await Promise.all(
-          data.map(async (comment) => {
-            const { count } = await supabase
-              .from("comments")
-              .select("*", { count: "exact" })
-              .eq("parent_id", comment.id);
-            return { id: comment.id, count: count || 0 };
-          })
-        );
-
-        setRepliesCount(
-          counts.reduce((acc, { id, count }) => ({ ...acc, [id]: count }), {})
-        );
-
         const allComments = await supabase
           .from("comments")
           .select("*")
@@ -275,7 +280,6 @@ export default function Post({ post }) {
     }
   };
 
-  // Создаем отдельный хук
   const useScrollToComment = (targetId: number) => {
     useEffect(() => {
       const element = document.getElementById(`comment-${targetId}`);
@@ -294,7 +298,6 @@ export default function Post({ post }) {
 
   useScrollToComment(Number(commentId));
 
-  // Использование в компоненте
   useScrollToComment(targetCommentId, [comments]);
 
   useEffect(() => {
@@ -353,7 +356,7 @@ export default function Post({ post }) {
       if (parentId) {
         setReplies((prev) => ({
           ...prev,
-          [parentId]: [...(prev[parentId] || []), data],
+          [parentId]: [...(prev[parentId] || []), data], 
         }));
         setReplyTexts((prev) => ({ ...prev, [parentId]: "" }));
       } else {
@@ -378,6 +381,13 @@ export default function Post({ post }) {
     const extension = url.split(".").pop()?.toLowerCase();
     const videoExtensions = ["mp4", "webm", "ogg"];
     return videoExtensions.includes(extension || "") ? "video" : "image";
+  };
+
+  const toggleComments = () => {
+    setShowComments((prev) => {
+      if (!prev) fetchComments();
+      return !prev;
+    });
   };
 
   useEffect(() => {
@@ -420,6 +430,7 @@ export default function Post({ post }) {
   }, [post.id]);
 
   useEffect(() => {
+    // Редирект со старых URL с хешем
     const handleHashRedirect = () => {
       const hash = window.location.hash;
       const match = hash.match(/comment-(.+)/);
@@ -433,6 +444,7 @@ export default function Post({ post }) {
     handleHashRedirect();
   }, [post.id]);
 
+  // В компоненте Post (post.tsx)
   useEffect(() => {
     const scrollToComment = async () => {
       if (!targetCommentId || !comments.length) return;
@@ -445,7 +457,7 @@ export default function Post({ post }) {
       );
 
       if (commentElement) {
-        const yOffset = -100;
+        const yOffset = -100; 
         const y =
           commentElement.getBoundingClientRect().top +
           window.pageYOffset +
@@ -506,35 +518,157 @@ export default function Post({ post }) {
     }
   }, [comments, showComments, commentId, hasScrolled]);
 
-  useEffect(() => {
-    const loadRepliesCount = async () => {
-      const counts = await Promise.all(
-        comments.map(async (comment) => {
-          const { count } = await supabase
-            .from("comments")
-            .select("*", { count: "exact" })
-            .eq("parent_id", comment.id);
-          return { id: comment.id, count: count || 0 };
-        })
-      );
+  const handleEditClick = () => {
+    setIsEditing(!isEditing);
+    if (isEditing) {
+      setText(post.text); 
+    }
+  };
 
-      setRepliesCount((prev) => ({
-        ...prev,
-        ...counts.reduce((acc, { id, count }) => ({ ...acc, [id]: count }), {}),
-      }));
+  const handleSaveTextPostClick = async () => {
+    try {
+      const { error } = await supabase
+        .from("posts")
+        .update({ text: postText })
+        .eq("id", post.id);
+
+      if (error) throw error;
+
+      setIsEditing(false);
+      setIsEditingTextPost(false);
+    } catch (error) {
+      console.error("Ошибка при обновлении поста:", error);
+      alert("Не удалось обновить пост");
+    }
+  };
+
+  const handeDeletePostMedia = async () => {
+    try {
+      const { error } = await supabase
+        .from("posts")
+        .update({ media_url: null })
+        .eq("id", post.id);
+
+      if (error) throw error;
+
+      setMediaUrl(null);
+    } catch (error) {
+      console.error("Error deleting media:", error);
+      alert("Failed to delete media");
+    }
+  };
+
+  const handleAddMediaClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleReplaceMedia = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/*, video/*";
+
+    fileInput.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      setIsUploading(true);
+
+      try {
+        if (mediaUrl) {
+          const fileName = mediaUrl.split("/").pop();
+          if (fileName) {
+            await supabase.storage
+              .from("post-images")
+              .remove([`posts/${fileName}`]);
+          }
+          setMediaUrl(null);
+        }
+
+        const fileName = `${Date.now()}-${file.name}`;
+        const filePath = `posts/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("post-images")
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from("post-images")
+          .getPublicUrl(filePath);
+
+        const { error: updateError } = await supabase
+          .from("posts")
+          .update({ media_url: urlData.publicUrl })
+          .eq("id", post.id);
+
+        if (updateError) throw updateError;
+
+        setMediaUrl(urlData.publicUrl);
+      } catch (error) {
+        console.error("Error replacing media:", error);
+        alert("Failed to replace media");
+      } finally {
+        setIsUploading(false);
+      }
     };
 
-    if (comments.length > 0) {
-      loadRepliesCount();
+    fileInput.click();
+  };
+
+  const handleDeletePost = async () => {
+    if (
+      !confirm(
+        "Are you sure you want to delete the post and all relative comments?"
+      )
+    ) {
+      return;
     }
-  }, [comments]);
+
+    try {
+      const { error: commentsError } = await supabase
+        .from("comments")
+        .delete()
+        .eq("post_id", post.id);
+      if (commentsError) throw commentsError;
+
+      const { error: likesError } = await supabase
+        .from("likes")
+        .delete()
+        .eq("post_id", post.id);
+      if (likesError) throw likesError;
+
+      const { error: savedError } = await supabase
+        .from("saved_posts")
+        .delete()
+        .eq("post_id", post.id);
+      if (savedError) throw savedError;
+
+      if (post.media_url) {
+        const fileName = post.media_url.split("/").pop();
+        if (fileName) {
+          await supabase.storage
+            .from("post-images")
+            .remove([`posts/${fileName}`]);
+        }
+      }
+
+      const { error: postError } = await supabase
+        .from("posts")
+        .delete()
+        .eq("id", post.id);
+      if (postError) throw postError;
+
+      setPostExists(false);
+    } catch (error) {
+      alert("Error, try again later");
+    }
+  };
 
   return (
     <div className="bg-[#D9D9D9] p-5 m-5 rounded-[15px] flex flex-col">
-      <div
-        onClick={goToProfile}
-        className="flex flex-row items-center gap-2 mb-5 cursor-pointer"
-      >
+      <div className="flex flex-row items-center gap-2 mb-5">
         {avatar ? (
           <Image
             src={avatar}
@@ -555,46 +689,232 @@ export default function Post({ post }) {
       </div>
 
       <div className="flex flex-col gap-5">
-        {post.text}
-        {post.media_url && (
-          <div className="relative w-full overflow-hidden rounded-[10px]">
-            {getMediaType(post.media_url) === "image" ? (
-              <Image
-                className="rounded-[10px] object-cover"
-                src={post.media_url}
-                alt="Post media"
-                width={400}
-                height={400}
-                quality={80}
-              />
-            ) : (
-              <video
-                ref={videoRef}
-                controls
-                className="w-[400px] rounded-[10px] aspect-video"
-                playsInline
-                preload="metadata"
-              >
-                <source
-                  src={`${post.media_url}#t=0.5`}
-                  type={`video/${post.media_url.split(".").pop()}`}
+        {isEditing ? (
+          <div className="flex flex-row gap-2 items-center">
+            {isEditingTextPost ? (
+              <>
+                <input
+                  className="bg-[#FFFFFF] h-[34px] w-[220px] p-2 rounded-[10px] text-[#000000]"
+                  type="text"
+                  value={postText}
+                  onChange={(e) => setPostText(e.target.value)}
                 />
-                Your browser does not support the video tag.
-              </video>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSaveTextPostClick}
+                    className="p-1 hover:bg-gray-200 rounded cursor-pointer"
+                  >
+                    <NicknameButton />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsEditingTextPost(false);
+                      setPostText(post.text); 
+                    }}
+                    className="p-1 hover:bg-gray-200 rounded cursor-pointer"
+                  >
+                    <UndoNickname />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <span className="mr-2">{postText}</span>
+                <button
+                  onClick={() => setIsEditingTextPost(true)}
+                  className="hover:bg-gray-100 p-1 rounded cursor-pointer"
+                >
+                  <PenIcon />
+                </button>
+              </>
             )}
           </div>
+        ) : (
+          <>{postText}</>
         )}
 
-        <div className="flex flex-row gap-5 items-center ml-3">
-          <button onClick={handleLike} className="cursor-pointer">
-            <HeartPostIcon filled={isLiked} />
-          </button>
-          <button onClick={handleCommentClick} className="cursor-pointer">
-            <CommentPostIcon filled={showComments} />
-          </button>
-          <button onClick={handleSavePost} className="cursor-pointer">
-            <BookmarkPostIcon filled={isSaved} />
-          </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept="image/*, video/*"
+          className="hidden"
+        />
+
+        {isEditing ? (
+          <div className="flex flex-row gap-2">
+            {mediaUrl ? (
+              <div className="relative rounded-[10px] overflow-hidden max-w-[400px]">
+                {getMediaType(mediaUrl) === "image" ? (
+                  <Image
+                    src={mediaUrl}
+                    alt="Post media"
+                    width={400}
+                    height={400}
+                    className="rounded-[10px] object-cover"
+                  />
+                ) : (
+                  <video
+                    ref={videoRef}
+                    controls
+                    className="w-full max-w-full object-contain aspect-video"
+                    playsInline
+                    preload="metadata"
+                  >
+                    <source src={`${mediaUrl}#t=0.5`} />
+                  </video>
+                )}
+                <div className="absolute bottom-3 right-3 z-50 flex-row gap-1 flex">
+                  <button
+                    onClick={handeDeletePostMedia}
+                    className="p-2 bg-white rounded-[5px] backdrop-blur-sm cursor-pointer"
+                  >
+                    <TrashCanIcon />
+                  </button>
+                  <button
+                    onClick={handleReplaceMedia}
+                    className="p-2 bg-white rounded-[5px] backdrop-blur-sm cursor-pointer"
+                  >
+                    <PenIcon />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={handleAddMediaClick}
+                className="relative border-2 border-dashed border-gray-400 rounded-[10px] p-10 text-center cursor-pointer hover:bg-gray-100 transition-colors max-w-[400px]"
+              >
+                {isUploading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <svg
+                      className="animate-spin h-5 w-5 text-gray-500"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    <span>Uploading...</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-10 w-10 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                      />
+                    </svg>
+                    <span className="text-gray-600 font-medium">
+                      Add Media...
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      Click to browse files
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {mediaUrl && (
+              <div className="relative w-full overflow-hidden rounded-[10px]">
+                {getMediaType(mediaUrl) === "image" ? (
+                  <Image
+                    className="rounded-[10px] object-cover"
+                    src={mediaUrl}
+                    alt="Post media"
+                    width={400}
+                    height={400}
+                    quality={80}
+                  />
+                ) : (
+                  <video
+                    ref={videoRef}
+                    controls
+                    className="w-[400px] rounded-[10px] aspect-video"
+                    playsInline
+                    preload="metadata"
+                  >
+                    <source
+                      src={`${mediaUrl}#t=0.5`}
+                      type={`video/${mediaUrl.split(".").pop()}`}
+                    />
+                    Your browser does not support the video tag.
+                  </video>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        <div className="flex flex-row items-center justify-between">
+          {isEditing ? (
+            <div></div>
+          ) : (
+            <>
+              {" "}
+              <div className="flex flex-row gap-5 items-center ml-0.5">
+                <button onClick={handleLike} className="cursor-pointer">
+                  <HeartPostIcon filled={isLiked} />
+                </button>
+                <button onClick={handleCommentClick} className="cursor-pointer">
+                  <CommentPostIcon filled={showComments} />
+                </button>
+                <button onClick={handleSavePost} className="cursor-pointer">
+                  <BookmarkPostIcon filled={isSaved} />
+                </button>
+              </div>
+            </>
+          )}
+          {isEditing ? (
+            <div className="flex flex-row gap-5">
+              <button
+                onClick={handleEditClick}
+                className="flex justify-center cursor-pointer items-center h-[50px] bg-[#5BB8FF] text-white rounded-[15px] text-[15px] px-8 w-full whitespace-nowrap"
+              >
+                Save
+              </button>
+            </div>
+          ) : (
+            <>
+              {" "}
+              <div className="flex flex-row gap-5">
+                <button
+                  onClick={handleEditClick}
+                  className="flex justify-center cursor-pointer items-center h-[50px] bg-[#5BB8FF] text-white rounded-[15px] text-[15px] px-5 w-full whitespace-nowrap"
+                >
+                  Change post
+                </button>
+                <button
+                  onClick={handleDeletePost}
+                  className="flex cursor-pointer justify-center items-center h-[50px] bg-[#FF4A4A] text-white rounded-[15px] text-[15px] px-5 w-full whitespace-nowrap hover:bg-[#FF3333] transition-colors"
+                >
+                  Delete post
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         <AnimatePresence>
@@ -606,7 +926,7 @@ export default function Post({ post }) {
               transition={{ duration: 0.3, ease: "easeInOut" }}
               className="overflow-hidden"
             >
-              <div className="bg-[#F0F0F0] p-5 rounded-[15px] flex flex-row justify-between">
+              <div className="bg-[#F0F0F0] p-5 rounded-[15px] flex flex-col justify-between">
                 <div className="flex flex-row items-center gap-3">
                   {user.avatar_url ? (
                     <Image
@@ -629,6 +949,12 @@ export default function Post({ post }) {
                   />
                 </div>
                 <div className="flex flex-row justify-between items-center mt-3">
+                  <div className="flex flex-row gap-3 items-center">
+                    <GifIcon />
+                    <ImgIcon />
+                    <SmileIcon />
+                    <VideoIcon />
+                  </div>
                   <button
                     onClick={() => addComment()}
                     className="flex justify-center items-center h-[50px] bg-[#5BB8FF] text-white rounded-[15px] text-[15px] px-10"
@@ -673,7 +999,7 @@ export default function Post({ post }) {
                         onClick={() => toggleReplies(comment.id)}
                         className="cursor-pointer"
                       >
-                        Answers ({repliesCount[comment.id] ?? 0})
+                        Answers
                       </button>
                     </div>
                   </div>
@@ -718,7 +1044,7 @@ export default function Post({ post }) {
                         </div>
                       ))}
 
-                      <div className="bg-[#F0F0F0] p-5 rounded-[15px] flex flex-row justify-between">
+                      <div className="bg-[#F0F0F0] p-5 rounded-[15px]">
                         <div className="flex flex-row items-center gap-3">
                           {user.avatar_url ? (
                             <Image
@@ -745,6 +1071,12 @@ export default function Post({ post }) {
                           />
                         </div>
                         <div className="flex flex-row justify-between items-center mt-3">
+                          <div className="flex flex-row gap-3 items-center">
+                            <GifIcon />
+                            <ImgIcon />
+                            <SmileIcon />
+                            <VideoIcon />
+                          </div>
                           <button
                             onClick={() => addComment(comment.id)}
                             className="flex justify-center items-center h-[50px] bg-[#5BB8FF] text-white rounded-[15px] text-[15px] px-10 cursor-pointer  "

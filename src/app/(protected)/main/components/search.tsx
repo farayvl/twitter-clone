@@ -12,7 +12,6 @@ export default function Search() {
   const [friends, setFriends] = useState<Set<string>>(new Set());
   const currentUserId = localStorage.getItem("token");
 
-  // Добавляем состояние для принудительного обновления
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
@@ -30,13 +29,12 @@ export default function Search() {
 
     const debounce = setTimeout(fetchUsers, 300);
     return () => clearTimeout(debounce);
-  }, [searchTerm, currentUserId, refreshTrigger]); // Добавляем триггер
+  }, [searchTerm, currentUserId, refreshTrigger]); 
 
   useEffect(() => {
     const fetchFriendsAndRequests = async () => {
       if (!currentUserId) return;
 
-      // Обновленный запрос для друзей
       const { data: friendsData } = await supabase
         .from('friends')
         .select('user1_id, user2_id')
@@ -49,7 +47,6 @@ export default function Search() {
       );
       setFriends(friendIds);
 
-      // Обновленный запрос для запросов с учетом статуса
       const { data: requestsData } = await supabase
         .from('friend_requests')
         .select('receiver_id, status')
@@ -63,12 +60,11 @@ export default function Search() {
     };
 
     fetchFriendsAndRequests();
-  }, [currentUserId, refreshTrigger]); // Добавляем триггер
+  }, [currentUserId, refreshTrigger]);
 
   const sendFriendRequest = async (receiverId: string) => {
     if (!currentUserId) return;
 
-    // Удаляем из друзей если были друзьями
     await supabase
       .from('friends')
       .delete()
@@ -90,7 +86,7 @@ export default function Search() {
         newSet.delete(receiverId);
         return newSet;
       });
-      setRefreshTrigger(prev => prev + 1); // Принудительное обновление
+      setRefreshTrigger(prev => prev + 1);
     }
   };
 

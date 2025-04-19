@@ -22,6 +22,7 @@ export default function HomePage() {
   const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [selectedGif, setSelectedGif] = useState<string | null>(null);
+  const [postWarning, setPostWarning] = useState();
 
   const [user, setUser] = useState<{
     login: string;
@@ -112,6 +113,11 @@ export default function HomePage() {
 
     let mediaUrl = selectedGif || null;
 
+    if (!text && !selectedGif && !selectedFile) {
+      setPostWarning(true);
+      return;
+    }
+
     try {
       if (selectedFile) {
         const fileExt = selectedFile.name.split(".").pop();
@@ -156,6 +162,10 @@ export default function HomePage() {
       alert(`Ошибка: ${error.message}`);
     }
   };
+
+  setTimeout(() => {
+    setPostWarning(false);
+  }, 7000);
 
   return (
     <div className="flex flex-col bg-[#F0F0F0] rounded-[10px] w-full h-full mx-5">
@@ -227,7 +237,6 @@ export default function HomePage() {
         <div className="flex flex-row justify-between items-center mt-3">
           <div className="flex flex-row gap-3 items-center">
             <div className="relative flex flex-col">
-              {/* Кнопка */}
               <button
                 onClick={() => setShowGifPicker(!showGifPicker)}
                 className="cursor-pointer relative z-20"
@@ -235,7 +244,6 @@ export default function HomePage() {
                 <GifIcon />
               </button>
 
-              {/* Контейнер для списка, который не двигает инпут */}
               <div className="absolute top-full left-0 mt-2 w-[320px] z-50">
                 <AnimatePresence>
                   {showGifPicker && (
@@ -254,9 +262,22 @@ export default function HomePage() {
                   )}
                 </AnimatePresence>
               </div>
+              <div className="absolute top-full left-0 mt-2 w-[320px] z-50">
+                <AnimatePresence>
+                  {postWarning && (
+                    <motion.div
+                      initial={{ y: -100, opacity: 0 }}
+                      animate={{ y: 30, opacity: 1 }}
+                      exit={{ y: -100, opacity: 0 }}
+                      transition={{ duration: 0.5 }}
+                      className="fixed top-0 left-1/2 transform -translate-x-1/2 z-[9999] bg-white border-[3px] border-[#FF9292] px-6 py-3 rounded-xl shadow-lg"
+                    >
+                      A post cannot be created because there is nothing in it.
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
-
-            {/* Остальные элементы */}
             <input
               type="file"
               accept="image/*, video/*"

@@ -13,6 +13,8 @@ import AvatarHoverImg from "@/assets/main/svg/avatar-hover-img";
 import ReactCrop, { type Crop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import Modal from "react-modal";
+import ProfilePost from "../../components/profile_post";
+import Post from "../../components/post";
 
 Modal.setAppElement("#__next");
 
@@ -35,7 +37,9 @@ export default function ProfilePage() {
     y: 0,
   });
   const [isCropping, setIsCropping] = useState(false);
+  const [posts, setPosts] = useState<Post[]>([]);
   const imgRef = useRef<HTMLImageElement>(null);
+  const userId = localStorage.getItem("token");
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -52,6 +56,19 @@ export default function ProfilePage() {
     };
 
     fetchUser();
+  }, []);
+
+  useEffect(() => {
+    const fetchPosts = async () => {
+      const { data } = await supabase
+        .from("posts")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+      if (data) setPosts(data);
+    };
+
+    fetchPosts();
   }, []);
 
   const handleEditClick = () => setIsEditing(true);
@@ -121,12 +138,10 @@ export default function ProfilePage() {
     try {
       const croppedImage = await getCroppedImg();
 
-      // Генерируем уникальное имя файла
       const timestamp = Date.now();
       const fileName = `${userId}_${timestamp}.jpg`;
       const filePath = `user_uploads/${userId}/${fileName}`;
 
-      // Загружаем файл с правильными параметрами
       const { error: uploadError } = await supabase.storage
         .from("avatars")
         .upload(filePath, croppedImage, {
@@ -137,12 +152,10 @@ export default function ProfilePage() {
 
       if (uploadError) throw uploadError;
 
-      // Получаем URL без преобразований
       const {
         data: { publicUrl },
       } = supabase.storage.from("avatars").getPublicUrl(filePath);
 
-      // Обновляем профиль
       const { error: updateError } = await supabase
         .from("profiles")
         .update({
@@ -152,17 +165,12 @@ export default function ProfilePage() {
 
       if (updateError) throw updateError;
 
-      // Принудительное обновление изображения
       setUser((prev) => ({
         ...prev,
         avatar_url: `${publicUrl}?v=${timestamp}`,
       }));
     } catch (error) {
-      console.error("Ошибка загрузки:", {
-        message: error.message,
-        details: error.stack,
-      });
-      alert("Ошибка обновления аватара: " + error.message);
+      alert("Avatar update error: " + error.message);
     } finally {
       setUploading(false);
       setIsCropping(false);
@@ -171,26 +179,23 @@ export default function ProfilePage() {
 
   return (
     <div className="flex flex-col bg-[#F0F0F0] rounded-[10px] w-full h-full mx-5">
-      {/* Модальное окно обрезки */}
       <Modal
         isOpen={isCropping}
         onRequestClose={() => {
           setIsCropping(false);
-          // Задержка для анимации закрытия
           setTimeout(() => setSrc(""), 300);
         }}
         className="fixed inset-0 flex items-center justify-center p-4"
         overlayClassName="fixed inset-0 bg-black/50 backdrop-blur-sm"
       >
         <div className="bg-white rounded-xl p-6 max-w-[90vw] max-h-[90vh]">
-          {src && ( // Добавляем проверку на наличие src
+          {src && ( 
             <ReactCrop
               crop={crop}
               onChange={(c) => setCrop(c)}
               aspect={1}
               circularCrop
             >
-              {/* Заменяем img на Next.js Image с правильными атрибутами */}
               <Image
                 ref={imgRef}
                 src={src}
@@ -199,7 +204,6 @@ export default function ProfilePage() {
                 height={400}
                 className="max-w-full max-h-[70vh] object-contain"
                 onLoad={() => {
-                  // Принудительное обновление после загрузки
                   setCrop((prev) => ({ ...prev }));
                 }}
               />
@@ -222,8 +226,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </Modal>
-
-      {/* Оригинальная верстка */}
       <div className="flex flex-row gap-5 items-center text-[#969696] text-[20px] p-5">
         <label
           htmlFor="avatar-upload"
@@ -301,44 +303,9 @@ export default function ProfilePage() {
       </div>
 
       <div className="h-[1px] w-full bg-[#969696]" />
-      <div className="bg-[#D9D9D9] p-5 m-5 rounded-[15px] flex flex-col">
-        <div className="flex flex-row items-center gap-2 mb-5">
-          <div className="rounded-[100px] bg-[#969696] h-[35px] w-[35px]" />
-          <div className="flex gap-1 flex-col leading-none">
-            <div className="text-[15px] m-0 p-0">Alex</div>
-            <div className="text-[11px] text-[#444444] m-0 p-0">
-              Your Friend
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-5">
-          A picture from the campground 😍
-          <div className="relative w-full overflow-hidden rounded-[10px]">
-            <Image
-              src="/assets/image/image.png"
-              alt="Post image"
-              width={800}
-              height={0}
-            />
-          </div>
-          <div className="flex flex-row items-center justify-between">
-            <div className="flex flex-row gap-5 ml-3">
-              <BookmarkPostIcon />
-              <HeartPostIcon />
-              <CommentPostIcon />
-            </div>
-            <div className="flex flex-row gap-5">
-              <button className="flex justify-center items-center h-[50px] bg-[#5BB8FF] text-white rounded-[15px] text-[15px] px-5 w-full whitespace-nowrap">
-                Change post
-              </button>
-              <button className="flex justify-center items-center h-[50px] bg-[#FF4A4A] text-white rounded-[15px] text-[15px] px-5 w-full whitespace-nowrap">
-                Delete post
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      {posts.map((post) => (
+        <ProfilePost key={post.id} post={post} />
+      ))}
     </div>
   );
 }
