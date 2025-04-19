@@ -84,12 +84,9 @@ export default function LoginPage() {
 
         <div className="mt-4">
           Don’t have an account?{" "}
-          <Link 
-            href="/auth/registration" 
-            className="text-[#5BB8FF] hover:underline"
-          >
+          <a href="/auth/registration" className="text-[#5BB8FF]">
             Registration
-          </Link>
+          </a>
         </div>
       </div>
     </div>

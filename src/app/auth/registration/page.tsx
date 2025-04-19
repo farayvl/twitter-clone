@@ -58,6 +58,29 @@ export default function RegistrationPage() {
       return;
     }
 
+    try {
+      const { data: existingUser, error: checkError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", email)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error("Email validation error:", checkError.message);
+        setEmailError("Email validation error, try again later.");
+        return;
+      }
+
+      if (existingUser) {
+        setEmailError("An account with this email already exists.");
+        return;
+      }
+    } catch (error) {
+      console.error("Email validation error:", error.message);
+      return;
+    }
+
+    // ✅ Регистрируем пользователя
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -87,7 +110,7 @@ export default function RegistrationPage() {
       }
 
       localStorage.setItem("token", userId);
-      router.push("/main/pages/home");
+      router.push(`/auth/confirmation-sended?email=${encodeURIComponent(email)}`);
     }
   };
 
