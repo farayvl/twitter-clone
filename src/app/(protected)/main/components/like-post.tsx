@@ -1,46 +1,75 @@
-"use client"
+"use client";
 
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { supabase } from "../../../../../supabaseClient";
 
-export default function LikePost({ notification }) {
+interface Notification {
+  sender: {
+    username: string;
+    login: string;
+    avatar_url: string | null;
+  };
+  post_id: string;
+  post?: {
+    media_url: string | null;
+  };
+}
+
+// Тип для пользователя
+interface UserProfile {
+  login: string;
+  username: string;
+  avatar_url: string | null;
+}
+
+interface LikePostProps {
+  notification: Notification;
+}
+
+export default function LikePost({ notification }: LikePostProps) {
   const sender = notification?.sender;
 
   const handleClick = () => {
     const url = `/main/posts/${notification.post_id}`;
     window.location.href = url;
   };
-  
-    const [user, setUser] = useState<{
-      login: string;
-      username: string;
-      avatar_url: string | null;
-    }>({
-      login: "",
-      username: "",
-      avatar_url: null,
-    });
-  
-    useEffect(() => {
-      const fetchUser = async () => {
-        const userId = localStorage.getItem("token");
-        if (!userId) return;
-  
-        const { data } = await supabase
-          .from("profiles")
-          .select("login, username, avatar_url")
-          .eq("id", userId)
-          .single();
-  
-        if (data) setUser(data);
-      };
-  
-      fetchUser();
-    }, []);
+
+  const [user, setUser] = useState<UserProfile>({
+    login: "",
+    username: "",
+    avatar_url: null,
+  });
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const userId = localStorage.getItem("token");
+      if (!userId) return;
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("login, username, avatar_url")
+        .eq("id", userId)
+        .single();
+
+      if (error) {
+        console.error("Error fetching user:", error);
+        return;
+      }
+
+      if (data) {
+        setUser(data as UserProfile);
+      }
+    };
+
+    fetchUser();
+  }, []);
 
   return (
-    <div className="bg-[#D9D9D9] p-5 m-5 rounded-[15px] flex flex-col cursor-pointer" onClick={handleClick}>
+    <div
+      className="bg-[#D9D9D9] p-5 m-5 rounded-[15px] flex flex-col cursor-pointer"
+      onClick={handleClick}
+    >
       <div className="flex flex-row items-center gap-2 mb-5">
         <Image
           width={35}

@@ -20,7 +20,6 @@ export default function CommentPost({ notification }: CommentPostProps) {
   const [postMedia, setPostMedia] = useState("");
   const [sender] = useState(notification.sender);
 
-  // components/comment-post.tsx
   const handleClick = () => {
     const url = `/main/posts/${notification.post_id}?commentId=${notification.comment_id}&openComments=true`;
     window.location.href = url;

@@ -9,7 +9,6 @@ interface FriendProfile {
   username: string;
   login: string;
   avatar_url: string | null;
-  // Другие поля профиля, если они есть
 }
 
 interface FriendCardProps {
