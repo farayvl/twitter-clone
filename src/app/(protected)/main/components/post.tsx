@@ -32,7 +32,8 @@ interface Post {
   id: string;
   user_id: string;
   text: string;
-  media_url?: string;
+  media_url?: string | null;
+  created_at: string;
 }
 
 export default function Post({ post }: { post: Post }) {
