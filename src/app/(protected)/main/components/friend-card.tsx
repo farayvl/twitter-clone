@@ -4,11 +4,23 @@ import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { supabase } from "../../../../../supabaseClient";
 
-export default function FriendCard({ friend, onRemove }: { 
-  friend: any, 
-  onRemove: () => void 
-}) {
-  const [friendProfile, setFriendProfile] = useState<any>(null);
+interface FriendProfile {
+  id: string;
+  username: string;
+  login: string;
+  avatar_url: string | null;
+  // Другие поля профиля, если они есть
+}
+
+interface FriendCardProps {
+  friend: {
+    id: string;
+  };
+  onRemove: () => void;
+}
+
+export default function FriendCard({ friend, onRemove }: FriendCardProps) {
+  const [friendProfile, setFriendProfile] = useState<FriendProfile | null>(null);
 
   useEffect(() => {
     const fetchFriend = async () => {
