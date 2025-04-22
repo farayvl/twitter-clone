@@ -1,6 +1,6 @@
 // next.config.js
 module.exports = {
-  webpack: (config) => {
+  webpack: (config: { module: { rules: { test: RegExp; use: { loader: string; options: { publicPath: string; outputPath: string; name: string; }; }; }[]; }; }) => {
     config.module.rules.push({
       test: /\.(mp4|webm)$/,
       use: {
