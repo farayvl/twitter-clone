@@ -33,23 +33,26 @@ export default function NotificationsPage() {
   const userId = localStorage.getItem("token");
 
   useEffect(() => {
+    // Create a flag to track mounted state
+    let isMounted = true;
+
     const fetchNotifications = async () => {
       const { data, error } = await supabase
         .from("notifications")
         .select(
           `
-      *,
-      sender:profiles!sender_id(username, avatar_url, login),
-      post:posts!post_id(media_url)
-    `
+          *,
+          sender:profiles!sender_id(username, avatar_url, login),
+          post:posts!post_id(media_url)
+        `
         )
         .eq("receiver_id", userId)
         .order("created_at", { ascending: false });
 
-      if (!error) {
+      if (!error && isMounted) {
         console.log("Notifications data:", data);
         setNotifications(data);
-      } else {
+      } else if (error) {
         console.error("Error fetching notifications:", error);
       }
     };
@@ -66,12 +69,18 @@ export default function NotificationsPage() {
           table: "notifications",
         },
         (payload) => {
-          setNotifications((prev) => [payload.new as Notification, ...prev]);
+          if (isMounted) {
+            setNotifications((prev) => [payload.new as Notification, ...prev]);
+          }
         }
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
   }, [userId]);
 
   useEffect(() => {
