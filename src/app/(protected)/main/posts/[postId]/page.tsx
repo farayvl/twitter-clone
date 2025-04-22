@@ -1,17 +1,14 @@
-// app/(protected)/main/posts/[postId]/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../../../../../../supabaseClient";
 import Post from "@/app/(protected)/main/components/post";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams} from "next/navigation";
 import React from "react";
 
 export default function PostPage() {
   const params = useParams();
   const [post, setPost] = useState(null);
-  const searchParams = useSearchParams();
-  const commentId = searchParams.get("commentId");
 
   useEffect(() => {
     const fetchPost = async () => {

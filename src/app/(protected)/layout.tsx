@@ -13,7 +13,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     if (!token) {
       router.replace(`/auth/login?redirect=${encodeURIComponent(pathname)}`);
     }
-  }, []);
+  }, [pathname, router]);
 
   return <AuthGuard>{children}</AuthGuard>;
 }

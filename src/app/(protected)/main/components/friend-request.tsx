@@ -2,11 +2,29 @@ import React, { useEffect, useState } from "react";
 import { supabase } from "../../../../../supabaseClient";
 import Image from "next/image";
 
-export default function FriendRequest({ request, onUpdate }: { 
-  request: any, 
-  onUpdate: () => void 
-}) {
-  const [sender, setSender] = useState<any>(null);
+interface Profile {
+  id: string;
+  username: string;
+  login: string;
+  avatar_url: string | null;
+  // Добавь другие поля профиля по необходимости
+}
+
+interface FriendRequest {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  status: string;
+  // Другие поля запроса дружбы
+}
+
+interface FriendRequestProps {
+  request: FriendRequest;
+  onUpdate: () => void;
+}
+
+export default function FriendRequest({ request, onUpdate }: FriendRequestProps) {
+  const [sender, setSender] = useState<Profile | null>(null);
 
   useEffect(() => {
     const fetchSender = async () => {

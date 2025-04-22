@@ -7,12 +7,18 @@ import LikePost from "../../components/like-post";
 import CommentPost from "../../components/comment-post";
 import FriendRequest from "../../components/friend-request";
 
+interface FriendRequest {
+  id: string;
+  created_at: string;
+  sender_id: string;
+  receiver_id: string;
+  status: 'pending' | 'accepted' | 'rejected';
+}
+
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
-  const [requests, setRequests] = useState<any[]>([]);
+  const [requests, setRequests] = useState<FriendRequest[]>([]);
   const userId = localStorage.getItem("token");
-  const [comments, setComments] = useState([]);
-  const [likes, setLikes] = useState([]);
 
   useEffect(() => {
     const fetchNotifications = async () => {

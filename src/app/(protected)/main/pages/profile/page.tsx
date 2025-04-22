@@ -2,9 +2,6 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import PenIcon from "@/assets/main/svg/pen-icon";
-import BookmarkPostIcon from "@/assets/main/svg/bookmark-post-icon";
-import CommentPostIcon from "@/assets/main/svg/comment-post-icon";
-import HeartPostIcon from "@/assets/main/svg/heart-post-icon";
 import Image from "next/image";
 import { supabase } from "../../../../../../supabaseClient";
 import NicknameButton from "@/assets/main/svg/nickname-button";
@@ -14,9 +11,15 @@ import ReactCrop, { type Crop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import Modal from "react-modal";
 import ProfilePost from "../../components/profile_post";
-import Post from "../../components/post";
 
 Modal.setAppElement("#__next");
+
+interface Post {
+  id: string;
+  user_id: string;
+  text: string;
+  media_url: string;
+}
 
 export default function ProfilePage() {
   const [user, setUser] = useState<{

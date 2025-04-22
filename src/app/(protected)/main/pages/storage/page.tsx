@@ -4,11 +4,16 @@ import BookmarkIcon from "@/assets/main/svg/bookmark-icon";
 import React, { useEffect, useState } from "react";
 import Post from "../../components/post";
 import { supabase } from "../../../../../../supabaseClient";
-import { div } from "framer-motion/client";
 
-export default function StoragePage({ favorite }) {
+interface Post {
+  id: string;
+  user_id: string;
+  text: string;
+  media_url: string;
+}
+
+export default function StoragePage() {
   const [savedPosts, setSavedPosts] = useState<Post[]>([]); 
-  const userId = localStorage.getItem("token");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

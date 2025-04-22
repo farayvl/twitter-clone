@@ -5,13 +5,11 @@ import GifIcon from "@/assets/main/svg/gif-icon";
 import HomeIcon from "@/assets/main/svg/home-icon";
 import ImgIcon from "@/assets/main/svg/img-icon";
 import SmileIcon from "@/assets/main/svg/smile-icon";
-import VideoIcon from "@/assets/main/svg/video-icon";
 import Post from "../../components/post";
 import { supabase } from "../../../../../../supabaseClient";
 import Image from "next/image";
 import GifPicker from "../../components/gif-picker";
 import { AnimatePresence, motion } from "framer-motion";
-import Link from "next/link";
 
 export default function HomePage() {
   const [text, setText] = useState("");

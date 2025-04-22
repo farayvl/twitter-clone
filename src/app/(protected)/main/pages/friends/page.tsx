@@ -5,28 +5,55 @@ import FriendIcon from "@/assets/main/svg/friend-icon";
 import FriendCard from "../../components/friend-card";
 import { supabase } from "../../../../../../supabaseClient";
 
+// types.ts
+export interface FriendRelation {
+  id: string; 
+  created_at: string; 
+  user1_id: string; 
+  user2_id: string; 
+}
+
+export interface UserProfile {
+  id: string; 
+  created_at?: string; 
+  login: string;
+  username: string;
+  avatar_url: string | null;
+}
 export default function FriendsPage() {
-  const [friends, setFriends] = useState<any[]>([]);
+  const [friends, setFriends] = useState<UserProfile[]>([]);
+  const [, setIsLoading] = useState(false);
   const userId = localStorage.getItem("token");
   
   useEffect(() => {
     const fetchFriends = async () => {
-      const { data } = await supabase
-        .from("friends")
-        .select("*")
-        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+      if (!userId) return;
+      
+      setIsLoading(true);
+      try {
+        const { data: friendRelations, error: relationsError } = await supabase
+          .from("friends")
+          .select("*")
+          .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
 
-      if (data) {
-        const friendIds = data.map((f) =>
-          f.user1_id === userId ? f.user2_id : f.user1_id
-        );
+        if (relationsError) throw relationsError;
 
-        const { data: profiles } = await supabase
+        const friendIds = friendRelations?.map((relation: FriendRelation) => 
+          relation.user1_id === userId ? relation.user2_id : relation.user1_id
+        ) || [];
+
+        const { data: friendsProfiles, error: profilesError } = await supabase
           .from("profiles")
           .select("*")
           .in("id", friendIds);
 
-        setFriends(profiles || []);
+        if (profilesError) throw profilesError;
+
+        setFriends(friendsProfiles as UserProfile[]);
+      } catch (error) {
+        console.error("Error fetching friends:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 

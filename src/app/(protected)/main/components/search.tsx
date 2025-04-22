@@ -5,9 +5,16 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "../../../../../supabaseClient";
 import Image from "next/image";
 
+interface UserProfile {
+  id: string;
+  login: string;
+  username: string;
+  avatar_url: string | null;
+}
+
 export default function Search() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]); 
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
   const [friends, setFriends] = useState<Set<string>>(new Set());
   const currentUserId = localStorage.getItem("token");
@@ -18,13 +25,13 @@ export default function Search() {
     const fetchUsers = async () => {
       if (!searchTerm || !currentUserId) return;
       
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('id, login, username, avatar_url')
         .ilike('username', `%${searchTerm}%`)
         .neq('id', currentUserId);
 
-      if (data) setUsers(data);
+      if (data) setUsers(data as UserProfile[]);
     };
 
     const debounce = setTimeout(fetchUsers, 300);
@@ -99,7 +106,7 @@ export default function Search() {
   return (
     <div className="flex flex-col p-6 bg-[#F0F0F0] rounded-[10px] w-[350px]">
       <div className="flex items-center bg-[#DFDFDF] h-[50px] rounded-[10px] px-4">
-        <SearchIcon className="w-5 h-5 text-gray-500" />
+        <SearchIcon />
         <input
           type="text"
           placeholder="Search..."

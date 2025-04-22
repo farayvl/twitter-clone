@@ -13,11 +13,27 @@ import VideoIcon from "@/assets/main/svg/video-icon";
 import HeartCommentIcon from "@/assets/main/svg/heart-comment-icon";
 import { supabase } from "../../../../../supabaseClient";
 import { useSearchParams } from "next/navigation";
-import { div } from "framer-motion/client";
 import PenIcon from "@/assets/main/svg/pen-icon";
 import TrashCanIcon from "@/assets/main/svg/trash-can-icon";
 import NicknameButton from "@/assets/main/svg/nickname-button";
 import UndoNickname from "@/assets/main/svg/undo-nickname";
+
+interface Profile {
+  id: string;
+  avatar_url: string | null;
+  username: string | null;
+  login: string | null;
+}
+
+interface Comment {
+  id: number;
+  post_id: string;
+  user_id: string;
+  text: string;
+  parent_id: number | null;
+  created_at: string;
+  profiles: Profile;
+}
 
 export default function ProfilePost({ post }) {
   const [showComments, setShowComments] = useState(false);
@@ -31,20 +47,19 @@ export default function ProfilePost({ post }) {
     {}
   );
   const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
-  const [replies, setReplies] = useState<Record<number, any[]>>({});
+  const [replies, setReplies] = useState<Record<number, Comment[]>>({});
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [targetCommentId, setTargetCommentId] = useState<number | null>(null);
-  const [postExists, setPostExists] = useState(true);
+  const [targetCommentId, ] = useState<number | null>(null);
+  const [, setPostExists] = useState(true);
   const searchParams = useSearchParams();
   const commentId = searchParams.get("commentId");
-  const shouldOpenComments = searchParams.get("openComments");
-  const [isCommentsLoading, setIsCommentsLoading] = useState(false);
+  const [, setIsCommentsLoading] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
   const isSinglePostPage = window.location.pathname.includes("/posts/");
   const [isSaved, setIsSaved] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [postText, setPostText] = useState(post.text); // Напрямую используем post.text
+  const [postText, setPostText] = useState(post.text);
   const [isEditingTextPost, setIsEditingTextPost] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -60,7 +75,7 @@ export default function ProfilePost({ post }) {
       const fileName = `${Date.now()}-${file.name}`;
       const filePath = `posts/${fileName}`;
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from("post-images")
         .upload(filePath, file);
 
@@ -85,10 +100,6 @@ export default function ProfilePost({ post }) {
     } finally {
       setIsUploading(false);
     }
-  };
-
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
   };
 
   useEffect(() => {
@@ -383,13 +394,6 @@ export default function ProfilePost({ post }) {
     return videoExtensions.includes(extension || "") ? "video" : "image";
   };
 
-  const toggleComments = () => {
-    setShowComments((prev) => {
-      if (!prev) fetchComments();
-      return !prev;
-    });
-  };
-
   useEffect(() => {
     const fetchUser = async () => {
       if (post.user_id) {
@@ -661,8 +665,8 @@ export default function ProfilePost({ post }) {
       if (postError) throw postError;
 
       setPostExists(false);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
-      alert("Error, try again later");
     }
   };
 

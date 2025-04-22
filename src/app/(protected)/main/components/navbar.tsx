@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { redirect, usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import BookmarkIcon from "@/assets/main/svg/bookmark-icon";
 import FriendIcon from "@/assets/main/svg/friend-icon";

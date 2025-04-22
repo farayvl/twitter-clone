@@ -11,6 +11,23 @@ import { supabase } from "../../../../../supabaseClient";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 
+interface Profile {
+  id: string;
+  avatar_url: string | null;
+  username: string | null;
+  login: string | null;
+}
+
+interface Comment {
+  id: number;
+  post_id: string;
+  user_id: string;
+  text: string;
+  parent_id: number | null;
+  created_at: string;
+  profiles: Profile;
+}
+
 export default function Post({ post }) {
   const [showComments, setShowComments] = useState(false);
   const [text, setText] = useState("");
@@ -23,14 +40,13 @@ export default function Post({ post }) {
     {}
   );
   const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
-  const [replies, setReplies] = useState<Record<number, any[]>>({});
+  const [replies, setReplies] = useState<Record<number, Comment[]>>({});
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [targetCommentId, setTargetCommentId] = useState<number | null>(null);
-  const [postExists, setPostExists] = useState(true);
+  const [targetCommentId, ] = useState<number | null>(null);
+  const [, setPostExists] = useState(true);
   const searchParams = useSearchParams();
   const commentId = searchParams.get("commentId");
-  const shouldOpenComments = searchParams.get("openComments");
-  const [isCommentsLoading, setIsCommentsLoading] = useState(false);
+  const [, setIsCommentsLoading] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
   const isSinglePostPage = window.location.pathname.includes("/posts/");
   const [isSaved, setIsSaved] = useState(false);
@@ -120,7 +136,6 @@ export default function Post({ post }) {
 
     const {
       data: { user },
-      error: authError,
     } = await supabase.auth.getUser();
 
     if (!user) {

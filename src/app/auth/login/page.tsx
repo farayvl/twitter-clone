@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ABeeZee } from "next/font/google";
 import { supabase } from "../../../../supabaseClient";
-import Link from "next/link";
 
 const abeezee = ABeeZee({ subsets: ["latin"], weight: "400" });
 

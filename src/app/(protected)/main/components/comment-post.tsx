@@ -18,7 +18,7 @@ interface CommentPostProps {
 
 export default function CommentPost({ notification }: CommentPostProps) {
   const [postMedia, setPostMedia] = useState("");
-  const [sender, setSender] = useState(notification.sender);
+  const [sender] = useState(notification.sender);
 
   // components/comment-post.tsx
   const handleClick = () => {
