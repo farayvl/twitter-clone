@@ -9,11 +9,12 @@ interface Post {
   id: string;
   user_id: string;
   text: string;
-  media_url: string;
+  media_url?: string | null;
+  created_at: string;
 }
 
 export default function StoragePage() {
-  const [savedPosts, setSavedPosts] = useState<Post[]>([]); 
+  const [savedPosts, setSavedPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,11 +36,12 @@ export default function StoragePage() {
 
       const { data: posts } = await supabase
         .from("posts")
-        .select("*")
+        .select("*, user:profiles(id, username, avatar_url)") 
         .in(
           "id",
           saved.map((item) => item.post_id)
-        );
+        )
+        .order("created_at", { ascending: false }); 
 
       setSavedPosts(posts || []);
     };
@@ -55,13 +57,15 @@ export default function StoragePage() {
       </div>
       <div className="h-[1px] w-full bg-[#969696]" />
       {loading ? (
-          <div className="flex-1 flex justify-center items-center">  
-            Loading...
-          </div>
+        <div className="flex-1 flex justify-center items-center">
+          Loading...
+        </div>
       ) : savedPosts.length > 0 ? (
         savedPosts.map((post) => <Post key={post.id} post={post} />)
       ) : (
-        <div className="flex-1 flex justify-center items-center">No saved posts</div>
+        <div className="flex-1 flex justify-center items-center">
+          No saved posts
+        </div>
       )}
     </div>
   );
