@@ -172,8 +172,11 @@ export default function ProfilePage() {
         ...prev,
         avatar_url: `${publicUrl}?v=${timestamp}`,
       }));
+      // Исправьте обработку ошибки в uploadCroppedAvatar
     } catch (error) {
-      alert("Avatar update error: " + error.message);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      alert("Avatar update error: " + errorMessage);
     } finally {
       setUploading(false);
       setIsCropping(false);
@@ -192,7 +195,7 @@ export default function ProfilePage() {
         overlayClassName="fixed inset-0 bg-black/50 backdrop-blur-sm"
       >
         <div className="bg-white rounded-xl p-6 max-w-[90vw] max-h-[90vh]">
-          {src && ( 
+          {src && (
             <ReactCrop
               crop={crop}
               onChange={(c) => setCrop(c)}

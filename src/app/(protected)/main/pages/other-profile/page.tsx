@@ -6,6 +6,14 @@ import Image from "next/image";
 import { supabase } from "../../../../../../supabaseClient";
 import Post from "../../components/post";
 
+interface Post {
+  id: string;
+  user_id: string;
+  text: string;
+  media_url?: string; 
+  created_at: string;
+}
+
 export default function OtherProfilePage() {
   const searchParams = useSearchParams();
 

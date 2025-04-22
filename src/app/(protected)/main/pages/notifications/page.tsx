@@ -7,16 +7,28 @@ import LikePost from "../../components/like-post";
 import CommentPost from "../../components/comment-post";
 import FriendRequest from "../../components/friend-request";
 
+interface Notification {
+  sender: {
+    username: string;
+    login: string;
+    avatar_url: string | null;
+  };
+  post_id: string;
+  post?: {
+    media_url: string | null;
+  };
+}
+
 interface FriendRequest {
   id: string;
   created_at: string;
   sender_id: string;
   receiver_id: string;
-  status: 'pending' | 'accepted' | 'rejected';
+  status: "pending" | "accepted" | "rejected";
 }
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const userId = localStorage.getItem("token");
 
@@ -54,7 +66,7 @@ export default function NotificationsPage() {
           table: "notifications",
         },
         (payload) => {
-          setNotifications((prev) => [payload.new, ...prev]);
+          setNotifications((prev) => [payload.new as Notification, ...prev]);
         }
       )
       .subscribe();

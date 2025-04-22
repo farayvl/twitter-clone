@@ -11,16 +11,24 @@ import Image from "next/image";
 import GifPicker from "../../components/gif-picker";
 import { AnimatePresence, motion } from "framer-motion";
 
+interface Post {
+  id: string;
+  user_id: string;
+  text: string;
+  media_url?: string | null;
+  created_at: string;
+}
+
 export default function HomePage() {
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [posts, setPosts] = useState([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [selectedGif, setSelectedGif] = useState<string | null>(null);
-  const [postWarning, setPostWarning] = useState();
+  const [postWarning, setPostWarning] = useState<boolean>(false);
 
   const [user, setUser] = useState<{
     login: string;
@@ -150,14 +158,16 @@ export default function HomePage() {
       setMediaPreview(null);
       setSelectedGif(null);
 
-      const { data: newPosts } = await supabase
+      const { data: newPosts, error: fetchError } = await supabase
         .from("posts")
         .select("*")
         .order("created_at", { ascending: false });
-      setPosts(newPosts);
+
+      if (!fetchError && newPosts) {
+        setPosts(newPosts as Post[]); // Явное приведение типа
+      }
     } catch (error) {
       console.error("Ошибка:", error);
-      alert(`Ошибка: ${error.message}`);
     }
   };
 
