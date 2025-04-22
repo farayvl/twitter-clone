@@ -1,15 +1,17 @@
+"use client";
+
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import Image from "next/image";
 import SearchIcon from "@/assets/main/svg/search-icon";
 
-const GIPHY_API_KEY = "qPjXf32MzEWAuGDdVVk51n1XOWNLHYAU"; 
-
+// Типы для пропсов компонента
 interface GifPickerProps {
   onSelect: (gifUrl: string) => void;
   onClose: () => void;
 }
 
+// Тип для объекта GIF из GIPHY API
 interface GifObject {
   id: string;
   images: {
@@ -21,10 +23,17 @@ interface GifObject {
   };
 }
 
+// Тип для ответа API Giphy
+interface GiphyResponse {
+  data: GifObject[];
+}
+
+const GIPHY_API_KEY = "qPjXf32MzEWAuGDdVVk51n1XOWNLHYAU";
+
 export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
   const [query, setQuery] = useState("");
   const [gifs, setGifs] = useState<GifObject[]>([]);
-  const modalRef = useRef(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!query) {
@@ -34,37 +43,41 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
 
     const fetchGifs = async () => {
       try {
-        const { data } = await axios.get(
+        const { data } = await axios.get<GiphyResponse>(
           `https://api.giphy.com/v1/gifs/search?q=${query}&api_key=${GIPHY_API_KEY}&limit=10`
         );
         setGifs(data.data);
       } catch (error) {
-        console.error("Ошибка загрузки GIF:", error);
+        console.error("Error loading GIFs:", error);
       }
     };
 
-    fetchGifs();
+    const debounceTimer = setTimeout(fetchGifs, 300);
+    return () => clearTimeout(debounceTimer);
   }, [query]);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (modalRef.current && !modalRef.current.contains(event.target)) {
-        onClose(); 
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (modalRef.current && !modalRef.current.contains(target)) {
+        onClose();
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, [onClose]);
 
   return (
     <div
       className="absolute bottom-12 left-0 w-[400px] bg-white p-4 rounded-md shadow-lg z-50 flex flex-col"
       ref={modalRef}
-      style={{ height: "400px" }} 
+      style={{ height: "400px" }}
     >
       <div className="flex-shrink-0  bg-[#DFDFDF] h-[50px] rounded-[10px] px-4 flex items-center">
-        <SearchIcon className="w-5 h-5 text-gray-500" />
+        <SearchIcon />
         <input
           type="text"
           placeholder="Write something..."
