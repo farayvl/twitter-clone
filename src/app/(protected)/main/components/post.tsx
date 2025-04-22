@@ -333,12 +333,16 @@ export default function Post({ post }: { post: Post }) {
           table: "comments",
           filter: `post_id=eq.${post.id}`,
         },
-        () => fetchComments()
+        () => {
+          fetchComments().catch(console.error); 
+        }
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
-  }, [post.id]);
+    return () => {
+      supabase.removeChannel(channel).catch(console.error);
+    };
+  }, [post.id, fetchComments]);
 
   const fetchReplies = async (commentId: number) => {
     const { data, error } = await supabase
