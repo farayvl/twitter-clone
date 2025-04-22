@@ -7,7 +7,6 @@ interface Profile {
   username: string;
   login: string;
   avatar_url: string | null;
-  // Добавь другие поля профиля по необходимости
 }
 
 interface FriendRequest {
@@ -15,7 +14,6 @@ interface FriendRequest {
   sender_id: string;
   receiver_id: string;
   status: string;
-  // Другие поля запроса дружбы
 }
 
 interface FriendRequestProps {

@@ -5,9 +5,25 @@ import SearchIcon from "@/assets/main/svg/search-icon";
 
 const GIPHY_API_KEY = "qPjXf32MzEWAuGDdVVk51n1XOWNLHYAU"; 
 
-export default function GifPicker({ onSelect, onClose }) {
+interface GifPickerProps {
+  onSelect: (gifUrl: string) => void;
+  onClose: () => void;
+}
+
+interface GifObject {
+  id: string;
+  images: {
+    fixed_height: {
+      url: string;
+      width: string;
+      height: string;
+    };
+  };
+}
+
+export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
   const [query, setQuery] = useState("");
-  const [gifs, setGifs] = useState([]);
+  const [gifs, setGifs] = useState<GifObject[]>([]);
   const modalRef = useRef(null);
 
   useEffect(() => {
