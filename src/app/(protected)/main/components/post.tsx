@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import HeartPostIcon from "@/assets/main/svg/heart-post-icon";
@@ -55,11 +55,12 @@ export default function Post({ post }: { post: Post }) {
   const commentId = searchParams.get("commentId");
   const [, setIsCommentsLoading] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
-  const isSinglePostPage = window.location.pathname.includes("/posts/");
+  const isSinglePostPage = typeof window !== 'undefined' && window.location.pathname.includes("/posts/");
   const [isSaved, setIsSaved] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [repliesCount, setRepliesCount] = useState<Record<number, number>>({});
   const router = useRouter();
+
 
   const goToProfile = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -247,7 +248,7 @@ export default function Post({ post }: { post: Post }) {
     fetchUser();
   }, []);
 
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     setIsCommentsLoading(true);
     try {
       const { data, error } = await supabase
@@ -257,45 +258,50 @@ export default function Post({ post }: { post: Post }) {
         .is("parent_id", null)
         .order("created_at", { ascending: true });
 
-      if (!error && data) {
-        setComments(data);
+      if (error) throw error;
+      if (!data) return;
 
-        const counts = await Promise.all(
-          data.map(async (comment) => {
-            const { count } = await supabase
-              .from("comments")
-              .select("*", { count: "exact" })
-              .eq("parent_id", comment.id);
-            return { id: comment.id, count: count || 0 };
-          })
-        );
+      setComments(data);
 
-        setRepliesCount(
-          counts.reduce((acc, { id, count }) => ({ ...acc, [id]: count }), {})
-        );
+      // Подсчет ответов с проверкой на null
+      const counts = await Promise.all(
+        data.map(async (comment) => {
+          const { count, error: countError } = await supabase
+            .from("comments")
+            .select("*", { count: "exact", head: true })
+            .eq("parent_id", comment.id);
 
-        const allComments = await supabase
-          .from("comments")
-          .select("*")
-          .eq("post_id", post.id);
+          if (countError) throw countError;
+          return { id: comment.id, count: count ?? 0 };
+        })
+      );
 
-        if (allComments.data) {
-          const targetComment = allComments.data.find(
-            (c) => c.id === targetCommentId
-          );
-          if (targetComment?.parent_id) {
-            setOpenedReplies((prev) => ({
-              ...prev,
-              [targetComment.parent_id]: true,
-            }));
-            fetchReplies(targetComment.parent_id);
-          }
-        }
+      setRepliesCount(
+        counts.reduce((acc, { id, count }) => ({ ...acc, [id]: count }), {})
+      );
+
+      const { data: allComments, error: allCommentsError } = await supabase
+        .from("comments")
+        .select("*")
+        .eq("post_id", post.id);
+
+      if (allCommentsError) throw allCommentsError;
+      if (!allComments) return;
+
+      const targetComment = allComments.find((c) => c.id === targetCommentId);
+      if (targetComment?.parent_id) {
+        setOpenedReplies((prev) => ({
+          ...prev,
+          [targetComment.parent_id]: true,
+        }));
+        fetchReplies(targetComment.parent_id);
       }
+    } catch (error) {
+      console.error("Error fetching comments:", error);
     } finally {
       setIsCommentsLoading(false);
     }
-  };
+  }, [post.id, targetCommentId]);
 
   const useScrollToComment = (
     targetId: number | null,
@@ -318,7 +324,6 @@ export default function Post({ post }: { post: Post }) {
     }, [targetId, ...dependencies]);
   };
 
-  // Then in your component, use it like this:
   useScrollToComment(Number(commentId), [comments]);
   useScrollToComment(targetCommentId, [comments]);
 
@@ -334,7 +339,7 @@ export default function Post({ post }: { post: Post }) {
           filter: `post_id=eq.${post.id}`,
         },
         () => {
-          fetchComments().catch(console.error); 
+          fetchComments().catch(console.error);
         }
       )
       .subscribe();
@@ -437,12 +442,17 @@ export default function Post({ post }: { post: Post }) {
 
   useEffect(() => {
     const checkPostExists = async () => {
-      const { count } = await supabase
+      const { count, error } = await supabase
         .from("posts")
-        .select("*", { count: "exact" })
+        .select("*", { count: "exact", head: true })
         .eq("id", post.id);
 
-      setPostExists(count > 0);
+      if (error) {
+        console.error("Error checking post existence:", error);
+        return;
+      }
+
+      setPostExists((count ?? 0) > 0);
     };
 
     checkPostExists();
