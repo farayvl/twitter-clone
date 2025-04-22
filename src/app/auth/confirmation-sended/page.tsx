@@ -2,9 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
-import React from "react";
+import React, { Suspense } from "react";
 
-export default function ConfirmationSendedPage() {
+function ConfirmationContent() {
   const router = useRouter(); 
   const searchParams = useSearchParams();
   const email = searchParams.get("email");
@@ -25,5 +25,13 @@ export default function ConfirmationSendedPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function ConfirmationSendedPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ConfirmationContent />
+    </Suspense>
   );
 }
