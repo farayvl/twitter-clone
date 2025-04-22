@@ -28,7 +28,14 @@ interface Comment {
   profiles: Profile;
 }
 
-export default function Post({ post }) {
+interface Post {
+  id: string;
+  user_id: string;
+  text: string;
+  media_url?: string;
+}
+
+export default function Post({ post }: { post: Post }) {
   const [showComments, setShowComments] = useState(false);
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
