@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import HeartPostIcon from "@/assets/main/svg/heart-post-icon";
@@ -17,6 +17,10 @@ import PenIcon from "@/assets/main/svg/pen-icon";
 import TrashCanIcon from "@/assets/main/svg/trash-can-icon";
 import NicknameButton from "@/assets/main/svg/nickname-button";
 import UndoNickname from "@/assets/main/svg/undo-nickname";
+
+interface CommentWithProfile extends Comment {
+  profiles: Profile;
+}
 
 interface Profile {
   id: string;
@@ -42,7 +46,6 @@ interface Post {
   media_url?: string;
 }
 
-
 export default function ProfilePost({ post }: { post: Post }) {
   const [showComments, setShowComments] = useState(false);
   const [text, setText] = useState("");
@@ -50,20 +53,22 @@ export default function ProfilePost({ post }: { post: Post }) {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [login, setLogin] = useState<string | null>(null);
-  const [comments, setComments] = useState([]);
+  const [comments, setComments] = useState<CommentWithProfile[]>([]);
   const [openedReplies, setOpenedReplies] = useState<Record<number, boolean>>(
     {}
   );
   const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
   const [replies, setReplies] = useState<Record<number, Comment[]>>({});
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [targetCommentId, ] = useState<number | null>(null);
+  const [targetCommentId] = useState<number | null>(null);
   const [, setPostExists] = useState(true);
   const searchParams = useSearchParams();
   const commentId = searchParams.get("commentId");
   const [, setIsCommentsLoading] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
-  const isSinglePostPage = window.location.pathname.includes("/posts/");
+  const isSinglePostPage =
+    typeof window !== "undefined" &&
+    window.location.pathname.includes("/posts/");
   const [isSaved, setIsSaved] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -71,7 +76,9 @@ export default function ProfilePost({ post }: { post: Post }) {
   const [isEditingTextPost, setIsEditingTextPost] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [mediaUrl, setMediaUrl] = useState(post.media_url);
+  const [mediaUrl, setMediaUrl] = useState<string | null>(
+    post.media_url || null
+  );
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -172,7 +179,7 @@ export default function ProfilePost({ post }: { post: Post }) {
   }, [post.id]);
 
   const handleSavePost = async (e: React.MouseEvent) => {
-    e.stopPropagation(); 
+    e.stopPropagation();
 
     const {
       data: { user },
@@ -264,7 +271,7 @@ export default function ProfilePost({ post }: { post: Post }) {
     fetchUser();
   }, []);
 
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     setIsCommentsLoading(true);
     try {
       const { data, error } = await supabase
@@ -274,33 +281,39 @@ export default function ProfilePost({ post }: { post: Post }) {
         .is("parent_id", null)
         .order("created_at", { ascending: true });
 
-      if (!error && data) {
-        setComments(data);
-        const allComments = await supabase
-          .from("comments")
-          .select("*")
-          .eq("post_id", post.id);
+      if (error) throw error;
+      if (!data) return;
 
-        if (allComments.data) {
-          const targetComment = allComments.data.find(
-            (c) => c.id === targetCommentId
-          );
-          if (targetComment?.parent_id) {
-            setOpenedReplies((prev) => ({
-              ...prev,
-              [targetComment.parent_id]: true,
-            }));
-            fetchReplies(targetComment.parent_id);
-          }
-        }
+      setComments(data as CommentWithProfile[]); // Явное приведение типа
+
+      const { data: allComments, error: allCommentsError } = await supabase
+        .from("comments")
+        .select("*")
+        .eq("post_id", post.id);
+
+      if (allCommentsError) throw allCommentsError;
+      if (!allComments) return;
+
+      const targetComment = allComments.find((c) => c.id === targetCommentId);
+      if (targetComment?.parent_id) {
+        setOpenedReplies((prev) => ({
+          ...prev,
+          [targetComment.parent_id]: true,
+        }));
+        fetchReplies(targetComment.parent_id);
       }
+    } catch (error) {
+      console.error("Error fetching comments:", error);
     } finally {
       setIsCommentsLoading(false);
     }
-  };
+  }, [post.id, targetCommentId, fetchReplies]);
 
-  const useScrollToComment = (targetId: number) => {
+  // Исправленный хук
+  const useScrollToComment = (targetId: number | null) => {
     useEffect(() => {
+      if (!targetId) return;
+
       const element = document.getElementById(`comment-${targetId}`);
       if (element) {
         setTimeout(() => {
@@ -312,8 +325,11 @@ export default function ProfilePost({ post }: { post: Post }) {
           element.classList.add("highlight-comment");
         }, 500);
       }
-    }, [targetId, comments]);
+    }, [targetId]);
   };
+
+  // Исправленный вызов
+  useScrollToComment(commentId ? Number(commentId) : null);
 
   useScrollToComment(Number(commentId));
 
@@ -330,33 +346,43 @@ export default function ProfilePost({ post }: { post: Post }) {
           table: "comments",
           filter: `post_id=eq.${post.id}`,
         },
-        () => fetchComments()
+        () => {
+          fetchComments().catch(console.error);
+        }
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
-  }, [post.id]);
+    return () => {
+      supabase.removeChannel(channel).catch(console.error);
+    };
+  }, [post.id, fetchComments]);
 
-  const fetchReplies = async (commentId: number) => {
+  const fetchReplies = useCallback(async (commentId: number) => {
     const { data, error } = await supabase
       .from("comments")
       .select("*, profiles:profiles(id, avatar_url, username, login)")
       .eq("parent_id", commentId)
       .order("created_at", { ascending: true });
 
-    if (!error && data) {
+    if (error) {
+      console.error("Error fetching replies:", error);
+      return;
+    }
+
+    if (data) {
       setReplies((prev) => ({ ...prev, [commentId]: data }));
     }
-  };
+  }, []);
 
   const addComment = async (parentId: number | null = null) => {
-    const textToAdd = parentId ? replyTexts[parentId] : text;
+    const textToAdd = parentId ? replyTexts[parentId] || "" : text;
     if (!textToAdd.trim()) return;
 
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser();
-    if (!user) return;
+    if (authError || !user) return;
 
     const commentData = {
       post_id: post.id,
@@ -371,17 +397,17 @@ export default function ProfilePost({ post }: { post: Post }) {
       .select("*, profiles:profiles(id, avatar_url, username, login)")
       .single();
 
-    if (!error && data) {
-      if (parentId) {
-        setReplies((prev) => ({
-          ...prev,
-          [parentId]: [...(prev[parentId] || []), data], 
-        }));
-        setReplyTexts((prev) => ({ ...prev, [parentId]: "" }));
-      } else {
-        setComments((prev) => [...prev, data]);
-        setText("");
-      }
+    if (error || !data) return;
+
+    if (parentId) {
+      setReplies((prev) => ({
+        ...prev,
+        [parentId]: [...(prev[parentId] || []), data as CommentWithProfile], // Приведение типа
+      }));
+      setReplyTexts((prev) => ({ ...prev, [parentId]: "" }));
+    } else {
+      setComments((prev) => [...prev, data as CommentWithProfile]); // Приведение типа
+      setText("");
     }
   };
 
@@ -430,12 +456,17 @@ export default function ProfilePost({ post }: { post: Post }) {
 
   useEffect(() => {
     const checkPostExists = async () => {
-      const { count } = await supabase
+      const { count, error } = await supabase
         .from("posts")
-        .select("*", { count: "exact" })
+        .select("*", { count: "exact", head: true })
         .eq("id", post.id);
 
-      setPostExists(count > 0);
+      if (error) {
+        console.error("Error checking post existence:", error);
+        return;
+      }
+
+      setPostExists((count ?? 0) > 0);
     };
 
     checkPostExists();
@@ -469,7 +500,7 @@ export default function ProfilePost({ post }: { post: Post }) {
       );
 
       if (commentElement) {
-        const yOffset = -100; 
+        const yOffset = -100;
         const y =
           commentElement.getBoundingClientRect().top +
           window.pageYOffset +
@@ -533,7 +564,7 @@ export default function ProfilePost({ post }: { post: Post }) {
   const handleEditClick = () => {
     setIsEditing(!isEditing);
     if (isEditing) {
-      setText(post.text); 
+      setText(post.text);
     }
   };
 
@@ -560,10 +591,10 @@ export default function ProfilePost({ post }: { post: Post }) {
         .from("posts")
         .update({ media_url: null })
         .eq("id", post.id);
-
+  
       if (error) throw error;
-
-      setMediaUrl(null);
+  
+      setMediaUrl(null); 
     } catch (error) {
       console.error("Error deleting media:", error);
       alert("Failed to delete media");
@@ -673,9 +704,8 @@ export default function ProfilePost({ post }: { post: Post }) {
       if (postError) throw postError;
 
       setPostExists(false);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
-    }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error) {}
   };
 
   return (
@@ -721,7 +751,7 @@ export default function ProfilePost({ post }: { post: Post }) {
                   <button
                     onClick={() => {
                       setIsEditingTextPost(false);
-                      setPostText(post.text); 
+                      setPostText(post.text);
                     }}
                     className="p-1 hover:bg-gray-200 rounded cursor-pointer"
                   >

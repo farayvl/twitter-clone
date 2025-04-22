@@ -55,12 +55,25 @@ export default function Post({ post }: { post: Post }) {
   const commentId = searchParams.get("commentId");
   const [, setIsCommentsLoading] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
-  const isSinglePostPage = typeof window !== 'undefined' && window.location.pathname.includes("/posts/");
+  const isSinglePostPage =
+    typeof window !== "undefined" &&
+    window.location.pathname.includes("/posts/");
   const [isSaved, setIsSaved] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [repliesCount, setRepliesCount] = useState<Record<number, number>>({});
   const router = useRouter();
 
+  const fetchReplies = async (commentId: number) => {
+    const { data, error } = await supabase
+      .from("comments")
+      .select("*, profiles:profiles(id, avatar_url, username, login)")
+      .eq("parent_id", commentId)
+      .order("created_at", { ascending: true });
+
+    if (!error && data) {
+      setReplies((prev) => ({ ...prev, [commentId]: data }));
+    }
+  };
 
   const goToProfile = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -348,18 +361,6 @@ export default function Post({ post }: { post: Post }) {
       supabase.removeChannel(channel).catch(console.error);
     };
   }, [post.id, fetchComments]);
-
-  const fetchReplies = async (commentId: number) => {
-    const { data, error } = await supabase
-      .from("comments")
-      .select("*, profiles:profiles(id, avatar_url, username, login)")
-      .eq("parent_id", commentId)
-      .order("created_at", { ascending: true });
-
-    if (!error && data) {
-      setReplies((prev) => ({ ...prev, [commentId]: data }));
-    }
-  };
 
   const addComment = async (parentId: number | null = null) => {
     const textToAdd = parentId ? replyTexts[parentId] : text;
