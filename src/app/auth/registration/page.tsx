@@ -76,7 +76,11 @@ export default function RegistrationPage() {
         return;
       }
     } catch (error) {
-      console.error("Email validation error:", error.message);
+      if (error instanceof Error) {
+        console.error("Email validation error:", error.message);
+      } else {
+        console.error("Unexpected error:", error);
+      }
       return;
     }
 
@@ -110,7 +114,9 @@ export default function RegistrationPage() {
       }
 
       localStorage.setItem("token", userId);
-      router.push(`/auth/confirmation-sended?email=${encodeURIComponent(email)}`);
+      router.push(
+        `/auth/confirmation-sended?email=${encodeURIComponent(email)}`
+      );
     }
   };
 
