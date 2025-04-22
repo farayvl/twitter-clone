@@ -8,12 +8,18 @@ import CommentPost from "../../components/comment-post";
 import FriendRequest from "../../components/friend-request";
 
 interface Notification {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  post_id: string;
+  comment_id?: string;
+  comment_text?: string;
+  created_at: string;
   sender: {
     username: string;
     login: string;
     avatar_url: string | null;
   };
-  post_id: string;
   post?: {
     media_url: string | null;
   };
@@ -114,9 +120,23 @@ export default function NotificationsPage() {
         />
       ))}
       {notifications.map((notification) => {
-        if (notification.comment_text && notification.post_id) {
+        if (
+          notification.comment_text &&
+          notification.post_id &&
+          notification.comment_id
+        ) {
           return (
-            <CommentPost key={notification.id} notification={notification} />
+            <CommentPost
+              key={notification.id}
+              notification={{
+                id: notification.id,
+                post_id: notification.post_id,
+                comment_id: notification.comment_id,
+                sender: notification.sender,
+                comment_text: notification.comment_text,
+                post: notification.post,
+              }}
+            />
           );
         }
 

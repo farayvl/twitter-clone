@@ -4,15 +4,18 @@ import { supabase } from "../../../../../supabaseClient";
 
 interface CommentPostProps {
   notification: {
-    post_id: number;
-    comment_id: number;
+    id: string;
+    post_id: string;
+    comment_id: string;
     sender: {
       username: string;
       login: string;
       avatar_url: string | null;
     };
     comment_text: string;
-    post_media?: string;
+    post?: {
+      media_url: string | null;
+    };
   };
 }
 
