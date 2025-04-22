@@ -326,7 +326,10 @@ export default function ProfilePost({ post }: { post: Post }) {
     }
   }, [post.id, targetCommentId, fetchReplies]);
 
-  const useScrollToComment = (targetId: number | null) => {
+  const useScrollToComment = (
+    targetId: number | null,
+    dependencies: React.DependencyList = []
+  ) => {
     useEffect(() => {
       if (!targetId) return;
 
@@ -341,13 +344,10 @@ export default function ProfilePost({ post }: { post: Post }) {
           element.classList.add("highlight-comment");
         }, 500);
       }
-    }, [targetId]);
+    }, [targetId, ...dependencies]);
   };
 
-  // Исправленный вызов
   useScrollToComment(commentId ? Number(commentId) : null);
-
-  useScrollToComment(Number(commentId));
 
   useScrollToComment(targetCommentId, [comments]);
 
