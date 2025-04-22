@@ -42,14 +42,14 @@ export default function Post({ post }: { post: Post }) {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [login, setLogin] = useState<string | null>(null);
-  const [comments, setComments] = useState([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [openedReplies, setOpenedReplies] = useState<Record<number, boolean>>(
     {}
   );
   const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
   const [replies, setReplies] = useState<Record<number, Comment[]>>({});
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [targetCommentId, ] = useState<number | null>(null);
+  const [targetCommentId] = useState<number | null>(null);
   const [, setPostExists] = useState(true);
   const searchParams = useSearchParams();
   const commentId = searchParams.get("commentId");
@@ -297,9 +297,13 @@ export default function Post({ post }: { post: Post }) {
     }
   };
 
-  // Создаем отдельный хук
-  const useScrollToComment = (targetId: number) => {
+  const useScrollToComment = (
+    targetId: number | null,
+    dependencies: React.DependencyList = []
+  ) => {
     useEffect(() => {
+      if (!targetId) return;
+
       const element = document.getElementById(`comment-${targetId}`);
       if (element) {
         setTimeout(() => {
@@ -311,12 +315,11 @@ export default function Post({ post }: { post: Post }) {
           element.classList.add("highlight-comment");
         }, 500);
       }
-    }, [targetId, comments]);
+    }, [targetId, ...dependencies]);
   };
 
-  useScrollToComment(Number(commentId));
-
-  // Использование в компоненте
+  // Then in your component, use it like this:
+  useScrollToComment(Number(commentId), [comments]);
   useScrollToComment(targetCommentId, [comments]);
 
   useEffect(() => {

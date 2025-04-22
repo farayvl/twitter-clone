@@ -42,6 +42,7 @@ interface Post {
   media_url?: string;
 }
 
+
 export default function ProfilePost({ post }: { post: Post }) {
   const [showComments, setShowComments] = useState(false);
   const [text, setText] = useState("");
