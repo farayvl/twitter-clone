@@ -271,6 +271,23 @@ export default function ProfilePost({ post }: { post: Post }) {
     fetchUser();
   }, []);
 
+  const fetchReplies = useCallback(async (commentId: number) => {
+    const { data, error } = await supabase
+      .from("comments")
+      .select("*, profiles:profiles(id, avatar_url, username, login)")
+      .eq("parent_id", commentId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching replies:", error);
+      return;
+    }
+
+    if (data) {
+      setReplies((prev) => ({ ...prev, [commentId]: data }));
+    }
+  }, []);
+
   const fetchComments = useCallback(async () => {
     setIsCommentsLoading(true);
     try {
@@ -309,7 +326,6 @@ export default function ProfilePost({ post }: { post: Post }) {
     }
   }, [post.id, targetCommentId, fetchReplies]);
 
-  // Исправленный хук
   const useScrollToComment = (targetId: number | null) => {
     useEffect(() => {
       if (!targetId) return;
@@ -356,23 +372,6 @@ export default function ProfilePost({ post }: { post: Post }) {
       supabase.removeChannel(channel).catch(console.error);
     };
   }, [post.id, fetchComments]);
-
-  const fetchReplies = useCallback(async (commentId: number) => {
-    const { data, error } = await supabase
-      .from("comments")
-      .select("*, profiles:profiles(id, avatar_url, username, login)")
-      .eq("parent_id", commentId)
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      console.error("Error fetching replies:", error);
-      return;
-    }
-
-    if (data) {
-      setReplies((prev) => ({ ...prev, [commentId]: data }));
-    }
-  }, []);
 
   const addComment = async (parentId: number | null = null) => {
     const textToAdd = parentId ? replyTexts[parentId] || "" : text;
@@ -591,10 +590,10 @@ export default function ProfilePost({ post }: { post: Post }) {
         .from("posts")
         .update({ media_url: null })
         .eq("id", post.id);
-  
+
       if (error) throw error;
-  
-      setMediaUrl(null); 
+
+      setMediaUrl(null);
     } catch (error) {
       console.error("Error deleting media:", error);
       alert("Failed to delete media");
